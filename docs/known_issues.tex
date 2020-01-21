@@ -1,0 +1,24 @@
+\section{Known Issues}
+\paragraph{distpy}
+has been designed for deployment across the widest possible range of platforms, from Edge to Cloud to on-prem to laptop. 
+It can be used from within your favourite Python environment. Some Python environment are not, however, suited for large-scale processing. 
+ 
+\paragraph{Anaconda environments} are generally a great Python installation for distpy, howevever, the Spyder debugger delivered with 
+Anaconda will hold onto variables to aid in any debugging. 
+When processing large datasets this can lead to an accumulation of stored memory that 
+can eventually cause your machine to run out of memory. 
+The best option here is to develop your script and configuration within the Spyder environment, 
+but then to launch your full-scale processing in the Anaconda Prompt.
+The command is:
+\begin{lstlisting}
+python -m myscript
+\end{lstlisting}
+ 
+\paragraph{Schlumberger's Techlog}
+Python Environment is not suited to running parallel. 
+You can design your processing flow using a small subset of the data running serial processing, 
+but then launch your full-scale processing using the Techlog python executable. This will typically be:
+\begin{lstlisting}
+"C:\Program Files\Schlumberger\Techlog 2019.1 (r23821)\Python36_x64\python.exe" -m myscript
+\end{lstlisting}
+

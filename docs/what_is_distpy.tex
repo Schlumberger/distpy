@@ -1,0 +1,18 @@
+\section{What is distpy?}
+
+Distributed Acoustic Sensing (DAS) has dramatically changed the way the reservoir and the well is surveyed. 
+By providing a distributed array of vibration measurements at up to 10 or 20 kHz on spacings as short as 12 cm, DAS has 
+introduced a view of the subsurface that could not previously be achieved. Whether this is the tracking of slugs in a multiphase flow,
+ providing very short turnaround times on borehole seismic profiles, or monitoring the slowly evolving geomechanic strain; DAS represents
+ a step change in monitoring.
+ \paragraph{The challenge of DAS} 
+ is the huge data volumes. For example a 3.5km well monitored every 12.75 cm at 10kHz will result in around 410 MB of data every second.
+This data needs to be processed to detect events, filtered to extract key signals, the resulting image might go to an image classifier or acoustic-signature detector.
+To get started in DAS there is a need for a baseline level of data-handling and scalable parallel processing that enables academic researchers and
+DAS customers to explore, for themselves, the possibilities that this data source brings.
+ \paragraph{distpy}
+is a python a module that automates testing of signal processing workflows and implements generic data sharing between systems.
+Signal processing workflows are defined via directed graphs. 
+The data is chunked (typically into 1 second windows) and each chunk processed independently, leading to embarassingly parallel processing 
+that scales across compute architectures of all shapes and sizes.
+
