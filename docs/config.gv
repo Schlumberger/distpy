@@ -1,0 +1,12 @@
+digraph G {
+load_data_0 -> fft_1
+load_data_0 -> thumbnail_2
+fft_1 -> rms_from_fft_3
+load_data_0 -> butter_4
+butter_4 -> thumbnail_5
+butter_4 -> sta_lta_6
+sta_lta_6 -> thumbnail_7
+sta_lta_6 -> peak_to_peak_8
+peak_to_peak_8 -> write_witsml_9
+rms_from_fft_3 -> write_witsml_9
+}
