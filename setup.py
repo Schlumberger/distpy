@@ -48,6 +48,7 @@ python -m setup install
 
 '''
 import builtins
+
 # Get a list of all files in the JS directory to include in our module
 builtins.__DISTPY_SETUP__ = True
 def package_files(directory):
@@ -57,10 +58,16 @@ def package_files(directory):
             paths.append(os.path.join('..', path, filename))
     return paths
 py_files = package_files('distpy')
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 def setup_package():
     setup(name='distpy',
           version=__version__,
           description='distpy : Processing for distributed fibre-optic sensor data',
+          long_description=long_description,
+          long_description_content_type="text/markdown",
           author="Michael J. Williams",
           author_email="miw@slb.com",
           packages = find_packages(),
