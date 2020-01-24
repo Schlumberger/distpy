@@ -13,7 +13,7 @@ import distpy.calc.pub_command_set as pub_command_set
 import distpy.calc.plt_command_set as plt_command_set
 
 
-def CommandFactory(commandList, commandJson):
+def CommandFactory(commandList, commandJson, extended_list=[]):
     # currently we are just extending our own list...
     knownList = {}
     # Add your own command sets below. The order indicates
@@ -22,8 +22,9 @@ def CommandFactory(commandList, commandJson):
     knownList = pub_command_set.KnownCommands(knownList)
     # plotting subset
     knownList = plt_command_set.KnownCommands(knownList)
-    # - example of extension
-    # knownList = my_command_set.KnownCommands(knownList)
+    # - load any supplied extensions
+    for command_set in extended_list:
+        knownList = command_set.KnownCommands(knownList)
     
     name = commandJson.get('name','NONE')
     plot_type = commandJson.get('plot_type','NONE')
