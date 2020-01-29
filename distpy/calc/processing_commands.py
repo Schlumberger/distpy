@@ -6,6 +6,7 @@
 # There is a special command at the head-node - where data is loaded
 '''
 import numpy
+import types
 import distpy.calc.extra_numpy as extra_numpy
 import distpy.calc.pub_command_set as pub_command_set
 # - example of extension
@@ -23,8 +24,9 @@ def CommandFactory(commandList, commandJson, extended_list=[]):
     # plotting subset
     knownList = plt_command_set.KnownCommands(knownList)
     # - load any supplied extensions
-    for command_set in extended_list:
-        knownList = command_set.KnownCommands(knownList)
+    for module_name in extended_list:
+        exec('import '+module_name)
+        exec('knownList = '+module_name+'.KnownCommands(knownList)')
     
     name = commandJson.get('name','NONE')
     plot_type = commandJson.get('plot_type','NONE')

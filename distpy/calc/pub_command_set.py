@@ -779,12 +779,11 @@ class VelocityMaskCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
 
-   def docs(self):
+    def docs(self):
         docs={}
         docs['one_liner']="Construct a phase-velocity filter in 2D space. The input should be from the velocity_map command."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['min_velocity','max_velocity'] }
         return docs
-
 
     def execute(self):
         velmap = self._previous.result()
@@ -845,7 +844,7 @@ def KnownCommands(knownList):
     knownList['butter']         = ButterCommand
     knownList['clip']           = ClipCommand
     knownList['count_peaks']    = CountPeaksCommand
-    knonwList['destripe']       = DestripeCommand
+    knownList['destripe']       = DestripeCommand
     knownList['diff']           = DiffCommand
     knownList['downsample']     = DownsampleCommand
     knownList['down_wave']      = DownCommand

@@ -9,6 +9,7 @@ jsonConfig = "{PATH}\\config\\strainrate2summary.json"
 ########################################
 import argparse
 
+import copy
 import os
 import numpy
 from distpy.workers.strainrate2summary import strainrate2summary
@@ -17,7 +18,7 @@ import distpy.io_help.io_helpers as io_helpers
 
 
 
-def main(configOuterFile):
+def main(configOuterFile, extended_list=[]):
     basedir,dirout,jsonConfig,PARALLEL,NCPU,BOX_SIZE, xaxisfile,taxisfile,prf = io_helpers.systemConfig(configOuterFile)
 
     xaxis = None
@@ -48,7 +49,7 @@ def main(configOuterFile):
         # parallel does not work in Techlog...
         for datafile in datafiles:
             print(datafile)
-            strainrate2summary(datafile, xaxis, prf, dirout, configData)
+            strainrate2summary(datafile, xaxis, prf, dirout, configData, copy.deepcopy(extended_list))
     else:
         manager = multiprocessing.Manager()
         q = manager.Queue()
@@ -59,7 +60,7 @@ def main(configOuterFile):
 
         jobs = []
         for datafile in datafiles:
-            job = pool.apply_async(strainrate2summary, [datafile, xaxis, prf,dirout, configData])
+            job = pool.apply_async(strainrate2summary, [datafile, xaxis, prf,dirout, configData,copy.deepcopy(extended_list)])
             print(job)
             jobs.append(job)
 

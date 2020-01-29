@@ -47,5 +47,6 @@ __status__ = 'Pre-alpha'
 # 1.7.0 destripe filter and auto-docoumentation
 # 1.8.0 read h5, read CSV...
 # 1.9.0 hash command added for perceptual hash workflows
-__version__ = '1.9.0'
+# 1.10.0 Support for proprietary extensions
+__version__ = '1.10.0'
 

@@ -17,7 +17,7 @@ import distpy.calc.processing_commands as processing_commands
 
                       This executes in one thread.
 '''
-def strainrate2summary(filename, xaxis, prf, dirout, commandJson):
+def strainrate2summary(filename, xaxis, prf, dirout, commandJson, extended_list):
     # try to make a datestamp that WITSML could use...
     tokens = filename.split(os.sep)
     # the final token without its .npy is the unix timestamp
@@ -74,7 +74,7 @@ def strainrate2summary(filename, xaxis, prf, dirout, commandJson):
         if index>=0:
             command['command']=command_list[index]
         #s(len(command_list))
-        command_list.append(processing_commands.CommandFactory(command_list,command))
+        command_list.append(processing_commands.CommandFactory(command_list,command,extended_list=extended_list))
 
     # if documenting - that is one path...execution is the other
     if isDocs==1:
