@@ -1,0 +1,9 @@
+{
+ "in_drive"  : "/archive/projects",
+ "out_drive" : "/scratch/myusername",
+ "project"   : "2020scr0001",
+ "data"      : "sgy",
+ "results"   : "sgy_data",
+ "parallel_flag"  : 1,
+ "ncpu"      : 128
+}

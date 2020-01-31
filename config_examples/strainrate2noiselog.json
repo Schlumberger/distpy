@@ -1,0 +1,12 @@
+{
+"document" : 0,
+"name" : "Standard 3-band Noise Log",
+"description" : "Creates total energy outputs for the 200*, 600* and 1000* bands of a conventional Noise Log.",
+"command_list" :
+[
+ { "name" : "fft",            "uid" :  1, "in_uid" :  0 },
+ { "name" : "rms_from_fft",   "uid" :  2, "in_uid" :  1, "low_freq" : 0, "high_freq" : -1 },
+ { "name" : "multiple_calcs", "uid" :  3, "in_uid" :  1,   "func" : "te_from_fft",     "low_freq" : [200,600,1000], "high_freq" : [-1,-1,-1] },
+ { "name" : "write_witsml",   "uid" :  4, "in_uid" :  3, "directory_out" : "NoiseLog", "low_freq" : [200,600,1000], "high_freq" : [-1,-1,-1],  "gather_uids" : [2], "data_style" : "NoiseLog" }
+]
+}

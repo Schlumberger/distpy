@@ -1,0 +1,9 @@
+{
+ "in_drive"  : "/home/projects/",
+ "out_drive" : "/scratch/myusername",
+ "project"   : "2020prj0001",
+ "data"      : "witsml",
+ "results"   : "interpretation",
+ "parallel_flag"  : 0,
+ "ncpu"      : 1
+}

@@ -1,0 +1,11 @@
+{
+"document" : 0,
+"name" : "Standard seismic band thumbnails",
+"description" : "Creates pictures of band-limited (5-200 Hz) strain-rate data.",
+"command_list" :
+[
+ { "name" : "butter",         "uid" :  1, "in_uid" : 0, "type" : "lowpass", "freq" : 200 },
+ { "name" : "butter",         "uid" :  2, "in_uid" : 1, "type" : "highpass", "freq" : 5 },
+ { "name" : "thumbnail",      "uid" :  3, "in_uid" : 2, "directory_out" : "png" }
+]
+}
