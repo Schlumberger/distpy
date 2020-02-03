@@ -1,7 +1,7 @@
 {
  "in_drive"  : "/archive/projects",
  "out_drive" : "/scratch/myusername",
- "project"   : "2020scr0001",
+ "project"   : "2020prj0001",
  "data"      : "sgy",
  "results"   : "sgy_data",
  "parallel_flag"  : 1,
