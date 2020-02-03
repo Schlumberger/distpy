@@ -440,6 +440,11 @@ def SEGYingest(segyfilename, outdir, overwrite=True):
         #if header['max_additional_240byte_headers']>0:
         #    print("additional trace headers found")
         # NOTE: this is wrong... should be stdHeader['scalar_applied_to_elevations_and_depths']...
+
+        # RISK OF DIVISION BY ZERO HERE...SO AVOID BY SETTING 0 TO 1
+        # IT's a short integer...
+        if stdHeader['scalar_applied_to_coordinates']<1:
+            stdHeader['scalar_applied_to_coordinates']=1
         xaxis[a]=(stdHeader['elevation_of_receiver_group']/stdHeader['scalar_applied_to_coordinates'])
 
         # determine the format of the numbers
