@@ -154,8 +154,15 @@ def command2md(command_list):
                 WITSML FBE format. This is compatible with Techlog.
 '''
 # Custom writer for FBE...
-def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_freq, prf, data_style='UNKNOWN'):
+def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_freq, prf, data_style='UNKNOWN', label_list=[]):
     curves = witsmlfbe.generic_curves(low_freq,high_freq,prf)
+    if (len(label_list)>0):
+        icurve=0
+        for label in label_list:
+            curves[icurve]['mnemonic']=label
+            curves[icurve]['description']=label
+            icurve+=1
+
     dataOutsize = len(low_freq);
     useB0 = True
     if band00 is None:
@@ -172,7 +179,7 @@ def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_f
     else:
         dataOut = data
         curves = curves[1:]
-    root = witsmlfbe.witsml_fbe(datestring,xaxis, curves, dataOut, data_style)
+    root = witsmlfbe.witsml_fbe(datestring,xaxis, curves, dataOut, data_style=data_style)
     # The datestring has characters that we do not want in a filename...
     # so we remo
     witsmlfbe.writeFBE(dirout,fileout,root)

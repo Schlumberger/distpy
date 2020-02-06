@@ -10,8 +10,10 @@ import numpy
 import os
 from scipy import signal
 from scipy import ndimage
+from scipy import stats
 from scipy.optimize import curve_fit
 from scipy.signal import butter, lfilter, freqz
+from scipy.stats import kurtosis, hmean, gmean, skew, moment
 import distpy.calc.extra_numpy as extra_numpy
 import distpy.io_help.io_helpers as io_helpers
 import distpy.io_help.directory_services as directory_services
@@ -34,6 +36,7 @@ universal_arglist = {
     "directory_out" : {DEFAULT : NONE, DESC : "The subdirectory where results will be written"},
     "command_list" :  {                DESC : "A list of sub-commands collected in a single macro"},
     "func" :          {                DESC : "Either rms_from_fft or te_from_fft"},
+    "labels" :        {                DESC : "A list of column headers"},
     "order" :         {DEFAULT : 5,    DESC : "The order for a filter calculation such as the Butterworth filter"},
     "type" :          {DEFAULT : "lowpass",DESC : "The type of a filter which can be lowpass, highpass, bandpass, or bandstop"},
     "padtype" :       {DEFAULT : "even",DESC : "The type of end-effect control on a filter, see scipy.signal.filtfilt"},
@@ -55,8 +58,9 @@ universal_arglist = {
     "commands" :      {DEFAULT : [None],DESC : "TODO"},
     "data_style" :    {DEFAULT : NONE,  DESC : "A string identifier for the data inside the WITSML file"},
     "method" :        {DEFAULT : "lin_fit", DESC : "The method for curve fitting, see scipy.optimize.curve_fit"},
-    "max_velocity":   {DEFAULT : 1600, DESC : "The maximum phase velocity"},
-    "min_velocity":   {DEFAULT : 1400, DESC : "The minimum phase velocity"},
+    "moment" :        {DEFAULT : 1,     DESC : "The order of central moment, see scipy.stats.moment"},
+    "max_velocity":   {DEFAULT : 1600,  DESC : "The maximum phase velocity"},
+    "min_velocity":   {DEFAULT : 1400,  DESC : "The minimum phase velocity"},
     "smooth" :        {DEFAULT : 0, DESC : "The smoothing factor for the filter"},
     "bounds" :        {DEFAULT : ([-5,0],[0,400]), DESC : "The bounds on curve fitting, see scipy.optimize.curve_fit"},
     "initSlopes" :    {DEFAULT : [-0.5], DESC : "An initial slope estimate for the curve fitting, see scipy.optimize.curve_fit"},
@@ -214,7 +218,122 @@ class AbsCommand(BasicCommand):
 
     def execute(self):
         self._result = numpy.abs(self._previous.result())
+'''
+ KurtosisCommand : wrappers the scipy.stats.kurtosis() function
+'''
+class KurtosisCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
 
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the kurtosis of the input using scipy.stats.kurtosis(). Use k statistics to eliminate bias and omit any NaNs."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        self._result = stats.kurtosis(self._previous.result(),axis=self._axis, bias=False, nan_policy='omit')
+
+'''
+ SkewnessCommand : wrappers the scipy.stats.skew() function
+'''
+class SkewnessCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the skewness of the input using scipy.stats.skewn(). Eliminate bias and omit any NaNs."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        self._result = stats.skew(self._previous.result(),axis=self._axis, bias=False, nan_policy='omit')
+
+'''
+ MomentCommand : wrappers the scipy.stats.moment() function
+'''
+class MomentCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
+        self._moment = jsonArgs.get('moment',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the nth moment of the input using scipy.stats.moment(). Omit any NaNs."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','moment'] }
+        return docs
+
+    def execute(self):
+        self._result = stats.moment(self._previous.result(),moment=self._moment, axis=self._axis, nan_policy='omit')
+'''
+ MeanCommand : wrappers the numpy.mean() function
+'''
+class MeanCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the mean of the input using numpy.mean()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        self._result = numpy.mean(self._previous.result(),axis=self._axis, keepdims=True)
+'''
+ StdCommand : wrappers the numpy.std() function
+'''
+class StdDevCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the standard deviation of the input using numpy.std()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        self._result = numpy.std(self._previous.result(),axis=self._axis, keepdims=True)
+
+'''
+ HarmonicMeanCommand : wrappers the scipy.stats.hmean() function
+'''
+class HarmonicMeanCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the harmonic mean of the input using scipy.stats.hmean()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        self._result = stats.hmean(self._previous.result(),axis=self._axis)
+'''
+ GeometricMeanCommand : wrappers the scipy.stats.gmean() function
+'''
+class GeometricMeanCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the geometric mean of the input using scipy.stats.gmean()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        self._result = stats.gmean(self._previous.result(),axis=self._axis)
 '''
  RealCommand : wrappers the numpy.real() function
 '''
@@ -550,6 +669,43 @@ class MultiplyCommand(BasicCommand):
             self._result = self._previous.result()*((self._prevstack[0]).result())
 
 '''
+ GatherCommand : Gather results together
+'''
+class GatherCommand(BasicCommand):
+    def __init__(self,command,jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._prevstack = jsonArgs.get('commands',[None])
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Gathers the data with all the data provided in the gather_uids to make one big matrix"
+        return docs
+
+
+    def execute(self):
+        if self._prevstack[0]!=None:
+            # How big a dataset is needed?
+            nx = self._previous.result().shape[0]
+            nt = self._previous.result().shape[1]
+            for dataset in self._prevstack:
+                if dataset.result().ndim > 1:
+                    nt += dataset.result().shape[1]
+                else:
+                    nt += 1
+            self._result = numpy.zeros((nx,nt),dtype=self._previous.result().dtype)
+            nt = self._previous.result().shape[1]            
+            self._result[:,:nt] = self._previous.result()[:,:]
+            ntold=nt
+            for dataset in self._prevstack:
+                if dataset.result().ndim > 1:
+                    nt += dataset.result().shape[1]
+                    self._result[:,ntold:nt]=dataset.result()[:,:]
+                else:
+                    self._result[:,ntold:nt]=numpy.reshape(dataset.result(),(-1,1))
+                    nt += 1
+                ntold=nt
+
+'''
  StaLtaCommand : short-term average to long-term-average onset-picker transform
 '''
 class StaLtaCommand(BasicCommand):
@@ -603,7 +759,8 @@ class WriteWITSMLCommand(BasicCommand):
         self._datedir = jsonArgs.get('date_dir','NONE')
         self._datestring = jsonArgs.get('datestring','NONE')
         self._lowf = jsonArgs.get('low_freq',[0])
-        self._highf = jsonArgs.get('high_freq',[1])        
+        self._highf = jsonArgs.get('high_freq',[1])
+        self._labellist = jsonArgs.get('labels',[])
         print(jsonArgs)
 
     def postcond(self):
@@ -613,7 +770,7 @@ class WriteWITSMLCommand(BasicCommand):
     def docs(self):
         docs={}
         docs['one_liner']="Write out to the WITSML/FBE format, suitable for loading into viewers such as Techlog or Petrel."
-        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out','xaxis','data_style','low_freq','high_freq'] }
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out','xaxis','data_style','low_freq','high_freq','labels'] }
         return docs
 
 
@@ -628,7 +785,7 @@ class WriteWITSMLCommand(BasicCommand):
             if self._prevstack[0]!=None:
                 self._band00= (self._prevstack[0]).result()
             io_helpers.write2witsml(self._outdir,self._datedir,self._datestring,self._xaxis, self._band00, self._previous.result(),
-                                    self._lowf, self._highf, self._prf, data_style=self._data_style)
+                                    self._lowf, self._highf, self._prf, data_style=self._data_style, label_list=self._labellist)
 
 '''
  RMSfromFFTCommand : the calculation of RMS noise within a frequency band, using the reduced memory functions
@@ -849,18 +1006,25 @@ def KnownCommands(knownList):
     knownList['downsample']     = DownsampleCommand
     knownList['down_wave']      = DownCommand
     knownList['fft']            = FFTCommand
+    knownList['gather']         = GatherCommand
     knownList['gaussian']       = GaussianCommand
+    knownList['geometric_mean'] = GeometricMeanCommand
+    knownList['harmonic_mean']  = HarmonicMeanCommand
     knownList['ifft']           = IFFTCommand
-    knownList['real']           = RealCommand
-    knownList['running_mean']   = RunningMeanCommand
+    knownList['kurtosis']       = KurtosisCommand
     knownList['macro']          = MacroCommand
     knownList['median_filter']  = MedianFilterCommand
+    knownList['mean']           = MeanCommand
     knownList['multiply']       = MultiplyCommand
     knownList['multiple_calcs'] = MultipleCalcsCommand
     knownList['peak_to_peak']   = Peak2PeakCommand
     knownList['rms_from_fft']   = RMSfromFFTCommand
+    knownList['real']           = RealCommand
+    knownList['running_mean']   = RunningMeanCommand
     knownList['sum']            = SumCommand
+    knownList['skewness']       = SkewnessCommand
     knownList['sta_lta']        = StaLtaCommand
+    knownList['std_dev']        = StdDevCommand
     knownList['up_wave']        = UpCommand
     knownList['velocity_map']   = VelocityMapCommand
     knownList['velocity_mask']  = VelocityMaskCommand

@@ -49,5 +49,6 @@ __status__ = 'Pre-alpha'
 # 1.9.0 hash command added for perceptual hash workflows
 # 1.10.0 Support for proprietary extensions
 # 1.10.1 Extra protection against divide by zero in sgy.py
-__version__ = '1.10.1'
+# 1.11.0 Enabled the basic statistical summaries
+__version__ = '1.11.0'
 
