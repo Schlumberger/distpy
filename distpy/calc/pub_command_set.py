@@ -102,6 +102,9 @@ class DataLoadCommand(object):
 
     def docs(self):
         return {}
+
+    def isGPU(self):
+        return False
     
     def execute(self):
         pass
@@ -137,49 +140,57 @@ class BasicCommand(object):
 
     def docs(self):
         return {}
+
+    def isGPU(self):
+        return False
         
     def execute(self):
         self._result = self._previous.result()
         
+        
     def result(self):
         return self._result
 
+
 '''
-    CSVLoadCommand - deprecated in favor of loading a CSV into
-                     {timestamp}.npy data files, and then processing
-                     those files with a signal processing chain
+ ToGPUCommand : Go to GPU
 '''
-class CSVLoadCommand(DataLoadCommand):
+class ToGPUCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
-        self._previous = command
-        self._result = self._previous.result()
+        super().__init__(command, jsonArgs)
         self._args = jsonArgs
-        self._indir = jsonArgs.get('directory_in','NONE')
-        self._outdir = jsonArgs.get('directory_out','NONE')
-        self._infile = jsonArgs.get('filename','NONE')
 
     def docs(self):
         docs={}
-        docs['one_liner']="Loading CSV files for DTS"
-        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xaxis','taxis','directory_in','directory_out','filename','args'] }
+        docs['one_liner']="Put the current result on the GPU and perform subsequent steps there. If no GPU is available, this has no effect."
         return docs
 
-    def postcond(self):
-        # CHALLENGE - these files don't give access to the name...
-        #return [directory_services.path_join(self._outdir,self._datedir+'.fbe')]
-        return []
-
-        
+    def isGPU(self):
+        return True
+    
     def execute(self):
-        data, timestamp, jsonArgs = io_helpers.ingest_csv(os.path.join(self._indir,self._infile),self._args)
-        fname=str(int(timestamp))+'.npy'
-        numpy.save(os.path.join(self._outdir,fname),data)
-        numpy.save(os.path.join(self._outdir,'measured_depth.npy'),jsonArgs['xaxis'])
-        numpy.save(os.path.join(self._outdir,'time_axis.npy'),jsonArgs['taxis'])
-        self._result=data
-        
-    def result(self):
-        return self._result
+        self._result = extra_numpy.to_gpu(self._previous.result())
+
+'''
+ FromGPUCommand : Return from GPU
+'''
+class FromGPUCommand(BasicCommand):
+    def __init__(self, command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._args = jsonArgs
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Put the current result on the CPU and perform subsequent steps there. If no GPU is available, this has no effect."
+        return docs
+
+    def isGPU(self):
+        return True
+    
+    def execute(self):
+        self._result = extra_numpy.from_gpu(self._previous.result())
+
+
 
 '''
   MacroCommand : This implements macros - providing a lightweight system for
@@ -199,8 +210,13 @@ class MacroCommand(BasicCommand):
 
     def execute(self):
         traces = self._previous.result()
-        command_list = self._macro['command_list']
+        # NOTE: the unit-test order matters. 'percentage_on' or 'sum' will result in a single trace, no good for 2D filters...
+        command_list = self._macro.get('command_list',[{'name':'abs'}, {'name':'normalize'},
+                                                       {'name':'gaussian_filter'},{'name':'gradient'},
+                                                       {'name':'threshold'},{'name':'median_filter'},
+                                                       {'name':'percentage_on'},{'name':'sum'}])
         for commands in command_list:
+            #print(commands,traces.shape)
             traces = extra_numpy.macro_factory(commands, traces)
         self._result = traces
 
@@ -216,8 +232,11 @@ class AbsCommand(BasicCommand):
         docs['one_liner']="Take the absolute value of the input"
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
-        self._result = numpy.abs(self._previous.result())
+        self._result = extra_numpy.agnostic_abs(self._previous.result())
 '''
  KurtosisCommand : wrappers the scipy.stats.kurtosis() function
 '''
@@ -283,8 +302,11 @@ class MeanCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
-        self._result = numpy.mean(self._previous.result(),axis=self._axis, keepdims=True)
+        self._result = extra_numpy.agnostic_mean(self._previous.result(),axis=self._axis, keepdims=True)
 '''
  StdCommand : wrappers the numpy.std() function
 '''
@@ -298,6 +320,9 @@ class StdDevCommand(BasicCommand):
         docs['one_liner']="Take the standard deviation of the input using numpy.std()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
+
+    def isGPU(self):
+        return True
 
     def execute(self):
         self._result = numpy.std(self._previous.result(),axis=self._axis, keepdims=True)
@@ -346,8 +371,11 @@ class RealCommand(BasicCommand):
         docs['one_liner']="Take the real value of the input"
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
-        self._result = numpy.real(self._previous.result())
+        self._result = extra_numpy.agnostic_real(self._previous.result())
 
 '''
  HashCommand : creates a 64-bit integer hash using extra_numpy.hash(), reducing the data from 2D to 1D
@@ -362,6 +390,9 @@ class HashCommand(BasicCommand):
         docs['one_liner']="Creates a 64-bit integer hash at each depth using extra_numpy.hash(), reducing the data from 2D to 1D"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['offset'] }
         return docs
+
+    def isGPU(self):
+        return True
 
     def execute(self):
         self._result = extra_numpy.hash(self._previous.result(),ioffset=self._ioffset)
@@ -405,8 +436,11 @@ class ArgmaxCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
-        self._result = numpy.argmax(self._previous.result(), axis=self._axis)
+        self._result = extra_numpy.agnostic_argmax(self._previous.result(), axis=self._axis)
 
 '''
  GaussianCommand : Applies a 2D Gaussian blurring filter using signal.ndarray.gaussian_filter()
@@ -426,7 +460,7 @@ class GaussianCommand(BasicCommand):
         return docs
 
     def execute(self):
-        self._result = signal.ndarray.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode='constant')
+        self._result = ndimage.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode='constant')
 
 '''
   MedianFilterCommand : applies a 2D square median filter using ndimage.median_filter()
@@ -461,8 +495,11 @@ class SumCommand(BasicCommand):
         docs['args']['axis']['default']=1
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
-        self._result = numpy.sum(self._previous.result(), axis=self._axis, keepdims=True)
+        self._result = extra_numpy.agnostic_sum(self._previous.result(), axis=self._axis, keepdims=True)
 
 
 '''
@@ -548,6 +585,8 @@ class ClipCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xaxis','taxis','xmin','xmax','tmin','tmax'] }
         return docs
 
+    def isGPU(self):
+        return True
 
     def execute(self):
         ixmin = 0
@@ -586,8 +625,11 @@ class DiffCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
-        self._result = numpy.diff(self._previous.result(),n=self._n, axis=self._axis)
+        self._result = extra_numpy.agnostic_diff(self._previous.result(),n=self._n, axis=self._axis)
 
 '''
  DownsampleCommand : index-based downsampling. Note there is no filtering, so for anti-alias
@@ -604,6 +646,9 @@ class DownsampleCommand(BasicCommand):
         docs['one_liner']="Downsampling to reduce the data size."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xsample','tsample'] }
         return docs
+
+    def isGPU(self):
+        return True
 
 
     def execute(self):
@@ -663,6 +708,8 @@ class MultiplyCommand(BasicCommand):
         #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
         return docs
 
+    def isGPU(self):
+        return True
 
     def execute(self):
         if self._prevstack[0]!=None:
@@ -681,29 +728,15 @@ class GatherCommand(BasicCommand):
         docs['one_liner']="Gathers the data with all the data provided in the gather_uids to make one big matrix"
         return docs
 
+    def isGPU(self):
+        return True
 
     def execute(self):
         if self._prevstack[0]!=None:
-            # How big a dataset is needed?
-            nx = self._previous.result().shape[0]
-            nt = self._previous.result().shape[1]
+            datalist = []
             for dataset in self._prevstack:
-                if dataset.result().ndim > 1:
-                    nt += dataset.result().shape[1]
-                else:
-                    nt += 1
-            self._result = numpy.zeros((nx,nt),dtype=self._previous.result().dtype)
-            nt = self._previous.result().shape[1]            
-            self._result[:,:nt] = self._previous.result()[:,:]
-            ntold=nt
-            for dataset in self._prevstack:
-                if dataset.result().ndim > 1:
-                    nt += dataset.result().shape[1]
-                    self._result[:,ntold:nt]=dataset.result()[:,:]
-                else:
-                    self._result[:,ntold:nt]=numpy.reshape(dataset.result(),(-1,1))
-                    nt += 1
-                ntold=nt
+                datalist.append(dataset.result())
+            self._result = extra_numpy.gather(self._previous.result(),datalist)
 
 '''
  StaLtaCommand : short-term average to long-term-average onset-picker transform
@@ -808,12 +841,16 @@ class RMSfromFFTCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['low_freq','high_freq'] }
         return docs
 
+    def isGPU(self):
+        return True
+    
+
     def execute(self):
         i1 = self._i1
         i2 = self._i2
         if i2<1:
             i2 = int(self._previous.result().shape[1]/2)
-        self._result = numpy.zeros((self._previous.result().shape[0],1),dtype=numpy.double)
+        self._result = extra_numpy.agnostic_zeros(self._previous.result(),(self._previous.result().shape[0],1),dtype=numpy.double)
         self._result = extra_numpy.reduced_mem((self._previous.result()[:,i1:i2]), self.result(), extra_numpy.rms_from_fft, {})
 
 
@@ -831,13 +868,17 @@ class FFTCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
 
+    def isGPU(self):
+        return True
+    
+
     def execute(self):
         if (self._axis==1):
-            self._result = numpy.zeros((self._previous.result().shape), dtype=numpy.complex)
-            self._result = extra_numpy.reduced_mem(self._previous.result(), self.result(), numpy.fft.fft, {'axis':self._axis})
+            self._result = extra_numpy.agnostic_zeros(self._previous.result(),(self._previous.result().shape), dtype=numpy.complex)
+            self._result = extra_numpy.reduced_mem(self._previous.result(), self.result(), extra_numpy.agnostic_fft, {'axis':self._axis})
         else:
             # currently the low memory version is only developed for the time orientation....
-            self._result = numpy.fft.fft(self._previous.result(),axis=self._axis)
+            self._result = extra_numpy.agnostic_fft(self._previous.result(),axis=self._axis)
 
 '''
  IFFTCommand : the inverse FFT along the requested axis
@@ -853,13 +894,16 @@ class IFFTCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
 
+    def isGPU(self):
+        return True
+
     def execute(self):
         if (self._axis==1):
-            self._result = numpy.zeros((self._previous.result().shape), dtype=numpy.complex)
-            self._result = extra_numpy.reduced_mem(self._previous.result(), self.result(), numpy.fft.ifft, {'axis':self._axis})
+            self._result = extra_numpy.agnostic_zeros(self._previous.result(),(self._previous.result().shape), dtype=numpy.complex)
+            self._result = extra_numpy.reduced_mem(self._previous.result(), self.result(), extra_numpy.agnostic_ifft, {'axis':self._axis})
         else:
             # currently the low memory version is only developed for the time orientation....
-            self._result = numpy.fft.ifft(self._previous.result(),axis=self._axis)
+            self._result = extra_numpy.agnostic_ifft(self._previous.result(),axis=self._axis)
 
 '''
  DesripeCommand : Remove vertical stripes from the data using extra_numpy.destripe()
@@ -873,6 +917,9 @@ class DestripeCommand(BasicCommand):
         docs['one_liner']="Remove vertical stripes from the data using extra_numpy.destripe()."
         return docs
 
+    def isGPU(self):
+        return True
+    
     def execute(self):
         self._result = extra_numpy.destripe(self._previous.result())
 
@@ -888,6 +935,9 @@ class UpCommand(BasicCommand):
         docs['one_liner']="Calculate the up-going waves using extra_numpy.up_wave(). Note that the data should be 2D FFTd before this command and are returned as complex values."
         return docs
 
+    def isGPU(self):
+        return True    
+
     def execute(self):
         self._result = extra_numpy.up_wave(self._previous.result())
 
@@ -902,6 +952,9 @@ class DownCommand(BasicCommand):
         docs={}
         docs['one_liner']="Calculate the down-going waves using extra_numpy.down_wave(). Note that the data should be 2D FFTd before this command and are returned as complex values."
         return docs
+
+    def isGPU(self):
+        return True
 
     def execute(self):
         self._result = extra_numpy.down_wave(self._previous.result())
@@ -945,7 +998,7 @@ class VelocityMaskCommand(BasicCommand):
     def execute(self):
         velmap = self._previous.result()
         minv = self._args.get('min_velocity',1400.0)
-        maxv = self._args('max_velocity', 1600.0)
+        maxv = self._args.get('max_velocity', 1600.0)
         smoothval = self._args.get('smooth',0)
         self._result = extra_numpy.vel_mask(velmap,minv,maxv,smoothval)
 
@@ -980,6 +1033,8 @@ class MultipleCalcsCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['low_freq','high_freq','func'] }
         return docs
 
+    def isGPU(self):
+        return True
         
     def execute(self):
         if not self._funcName=='NONE':
@@ -995,7 +1050,6 @@ class MultipleCalcsCommand(BasicCommand):
 def KnownCommands(knownList):
     knownList['NONE']           = BasicCommand
     knownList['data']           = DataLoadCommand
-    knownList['csv']            = CSVLoadCommand
     knownList['abs']            = AbsCommand
     knownList['argmax']         = ArgmaxCommand
     knownList['butter']         = ButterCommand
@@ -1006,6 +1060,7 @@ def KnownCommands(knownList):
     knownList['downsample']     = DownsampleCommand
     knownList['down_wave']      = DownCommand
     knownList['fft']            = FFTCommand
+    knownList['from_gpu']       = FromGPUCommand
     knownList['gather']         = GatherCommand
     knownList['gaussian']       = GaussianCommand
     knownList['geometric_mean'] = GeometricMeanCommand
@@ -1025,6 +1080,7 @@ def KnownCommands(knownList):
     knownList['skewness']       = SkewnessCommand
     knownList['sta_lta']        = StaLtaCommand
     knownList['std_dev']        = StdDevCommand
+    knownList['to_gpu']         = ToGPUCommand
     knownList['up_wave']        = UpCommand
     knownList['velocity_map']   = VelocityMapCommand
     knownList['velocity_mask']  = VelocityMaskCommand

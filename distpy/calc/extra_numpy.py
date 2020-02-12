@@ -1,9 +1,11 @@
 # (C) 2020, Schlumberger. Refer to LICENSE.
 
+# For GPU support also see agnostic.py
+
 import numpy
 import datetime
 
-
+import distpy.calc.agnostic as agnostic
 
 import scipy.signal
 import copy
@@ -17,18 +19,22 @@ from scipy.signal import hilbert
 # see reduced_mem() and available_funcs()
 # The reduced memory option is particularly for low memory devices
 BOXSIZE=400
+GPU_CPU = agnostic.agnostic()
 
 
 # extra functions for image cleanup (i.e. introduced for plotting, but
 # all are 1 or 2D data signal processing so belong in here)
+# https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
 def normalized(a, axis=-1, order=2):
-    l2 = numpy.atleast_1d(numpy.linalg.norm(a, order, axis))
+    xp = GPU_CPU.get_numpy(a)
+    l2 = xp.atleast_1d(xp.linalg.norm(a, order, axis))
     l2[l2==0] = 1
-    return a / numpy.expand_dims(l2, axis)
+    return a / xp.expand_dims(l2, axis)
 '''
 despike - despiking using a local median filter
 '''
 def despike(data, m = 2.):
+    # Median means that this is not available for GPU
     d = numpy.abs(data - numpy.median(data))
     mdev = numpy.median(d)
     s = d/mdev if mdev else 0.
@@ -37,11 +43,12 @@ def despike(data, m = 2.):
 intensity - rescale data to lie in the 0-1 range
 '''
 def intensity(data):
+    xp = GPU_CPU.get_numpy(data)
     # min goes to zero
-    val1 = numpy.min(data)
-    data = data - numpy.min(data)
+    val1 = xp.min(data)
+    data = data - xp.min(data)
     # max goes to nearly 1
-    data = data / (numpy.max(data)+1e-6)
+    data = data / (xp.max(data)+1e-6)
     return data
 
 '''
@@ -49,13 +56,16 @@ Curve fitting functions
 '''
 #various functions for curve fitting
 def exp_fit(x, a, b, c):
-    return a * numpy.exp(b *x) + c
+    xp = GPU_CPU.get_numpy(x)
+    return a * xp.exp(b *x) + c
 def sum2exp_fit(x, a, b, c, d, e):
-    return a*numpy.exp(b*x) + c*numpy.exp(d*x) + e
+    xp = GPU_CPU.get_numpy(x)
+    return a*xp.exp(b*x) + c*GPU_CPU.exp(d*x) + e
 def lin_fit(x,a,b):
     return a*x + b
 # A selection of a curve fit function
 def select_fit(strFit, values, initslopes):
+    # NOT GPU READY...
     func_fit = lin_fit
     coeffs0 = [initslopes[0],values[-1]]
     if strFit=="exp_fit":
@@ -66,6 +76,54 @@ def select_fit(strFit, values, initslopes):
         func_fit = sum2exp_fit
     return func_fit, coeffs0
 
+'''
+ Some functions that are GPU_CPU and used directly in
+ pub_command_set.py. This means pub_command_set depends on extra_numpy
+ and does not need to know about GPU/CPU issues.
+'''
+def agnostic_abs(x):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.abs(x)
+
+def agnostic_argmax(x, axis=None):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.argmax(x, axis=axis)
+
+def agnostic_diff(x, n=1, axis=-1):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.diff(x,n=n,axis=axis)
+
+
+def agnostic_fft(x,axis=-1):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.fft.fft(x,axis=axis)
+
+
+def agnostic_ifft(x,axis=-1):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.fft.ifft(x,axis=axis)
+
+def agnostic_mean(x, axis=None, keepdims=True ):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.mean(x,axis=axis, keepdims=keepdims)
+
+def agnostic_real(x):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.real(x)
+
+def agnostic_std(x, axis=None, keepdims= True):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.std(x,axis=axis, keepdims=keepdims)
+
+def agnostic_sum(x, axis=None, keepdims= True):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.sum(x,axis=axis, keepdims=keepdims)
+
+def agnostic_zeros(x,size_tuple,dtype=numpy.double):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.zeros(size_tuple,dtype=dtype)
+
+    
 
 '''
 Configure the calculation for different hardware sizes.
@@ -74,26 +132,60 @@ def set_boxsize(newval):
     global BOXSIZE
     BOXSIZE = newval
 
+def to_gpu(data):
+    return GPU_CPU.asarray(data)
+
+def from_gpu(data):
+    return GPU_CPU.asnumpy(data)
+
 '''
 Running mean calculation
 '''
 # see https://stackoverflow.com/questions/13728392/moving-average-or-running-mean
 def running_mean_1d(x, N):
+    # NOT GPU because of numpy.insert()
     cumsum = numpy.cumsum(numpy.insert(x, 0, 0)) 
     return (cumsum[N:] - cumsum[:-N]) / float(N)
 
 def running_mean(data, N, axis=0):
+    # NOT GPU because of extra_numpy.running_mean_1d
     if axis==0:
         for a in range(data.shape[0]):
-            data[a,:]=running_mean_1d(data[a,:],N)
+            data[a,:-N+1]=running_mean_1d(data[a,:],N)
     else:
         for a in range(data.shape[1]):
-            data[:,a]=running_mean_1d(data[:,a],N)
+            data[:-N+1,a]=running_mean_1d(data[:,a],N)
+'''
+ gather - gather together a list of matrices in a single numpy matrix
+'''
+def gather(data,prevstack):
+    xp = GPU_CPU.get_numpy(data)
+    nx = data.shape[0]
+    nt = data.shape[1]
+    for dataset in prevstack:
+        if dataset.ndim > 1:
+            nt += dataset.shape[1]
+        else:
+            nt += 1
+    result = xp.zeros((nx,nt),dtype=data.dtype)
+    nt = data.shape[1]
+    result[:,:nt] = data[:,:]
+    ntold=nt
+    for dataset in prevstack:
+        if dataset.ndim > 1:
+            nt += dataset.shape[1]
+            result[:,ntold:nt]=dataset[:,:]
+        else:
+            result[:,ntold:nt]=xp.reshape(dataset,(-1,1))
+            nt += 1
+        ntold=nt
+    return result
 
 '''
  interp - a wrapper around numpy's 1d interpolation
 '''
 def interp(data, xp, fp, axis=0):
+    # NOT GPU because of numpy.interp()
     if axis==0:
         for a in range(data.shape[0]):
             data[a,:]=numpy.interp(data[a,:],xp,fp)
@@ -108,6 +200,7 @@ def interp(data, xp, fp, axis=0):
               a combination which seems robust to data with fading-lines
 '''
 def approx_vlf(data):
+    # NOT GPU because of scipy.signal
     # A gaussian window to make a weighted average trace, (i.e. a low pass filter)
     win_len = data.shape[1]
     variance = 3000000
@@ -126,15 +219,16 @@ def approx_vlf(data):
                  want to sum are sent in.
 '''
 def te_from_fft(localData):
+    xp = GPU_CPU.get_numpy(localData)
     # calulate Total Energy (sum of squares)
     nx = localData.shape[0]
-    squared = numpy.real(localData*numpy.conj(localData))
+    squared = xp.real(localData*xp.conj(localData))
     nval = (len(squared[0])-1)*2
     # integration for RMS
     if nval%2:
-        rmsval = (squared[:,0]+2*numpy.sum(squared[:,1:],axis=1))
+        rmsval = (squared[:,0]+2*xp.sum(squared[:,1:],axis=1))
     else:
-        rmsval = (squared[:,0]+2*numpy.sum(squared[:,1:-1],axis=1) + squared[:,-1])
+        rmsval = (squared[:,0]+2*xp.sum(squared[:,1:-1],axis=1) + squared[:,-1])
     return rmsval
 
 '''
@@ -144,31 +238,15 @@ def te_from_fft(localData):
 '''
 # The general FBE calculation - the sender must control which part of the FFT is sent in...
 def rms_from_fft(localData):
+    xp = GPU_CPU.get_numpy(localData)
     # calulate RMS
     nx = localData.shape[0]
     nval = (nx-1)*2
     # First get the total energy
     rmsval = te_from_fft(localData)
     # Convert to RMS for output
-    return (numpy.sqrt(rmsval/nval)/numpy.sqrt(nval))
+    return (xp.sqrt(rmsval/nval)/xp.sqrt(nval))
 
-'''
- normalize - guarantees the sum is 1 in the required direction.
-'''
-def normalize(traces, axis_val):
-    THRESHOLD=1e-8
-    sumval = numpy.sum(traces, axis=axis_val)
-    sumval[(numpy.abs(sumval)<THRESHOLD)]=THRESHOLD
-    #print(traces.shape)
-    #print(sumval.shape)
-    #print(axis_val)
-    if (axis_val==0):
-        for a in range(traces.shape[0]):
-            traces[a,:]/=sumval[a]
-    else:
-        for a in range(traces.shape[1]):
-            traces[:,a]/=sumval[a]
-    return traces
 
 '''
  macro_factory - a mini command factory.
@@ -176,6 +254,7 @@ def normalize(traces, axis_val):
      encapsulated in a single command - see pub_command_set.Macro
 '''
 def macro_factory(args, traces):
+    # NOTE GPU because of scipy.ndimage.median_filter
     # set up all the possible defaults...
     axis_val = args.get('axis',0)
     distance_val = args.get('distance',5)
@@ -187,12 +266,12 @@ def macro_factory(args, traces):
     commandList = {
         "abs"             : numpy.abs(traces),
         "gaussian_filter" : ndimage.gaussian_filter(traces,sigma=sigma_val),
-        "gradient"        : numpy.gradient(traces, distance_val, axis=axis_val),
-        "normalize"       : normalize(traces, axis_val),
-        "percentage_on"   : 100*numpy.sum(traces,axis=axis_val)/traces.shape[axis_val],        
+        "gradient"        : numpy.gradient(traces.astype(numpy.double), distance_val, axis=axis_val),
+        "normalize"       : normalized(traces, axis=axis_val),
+        "percentage_on"   : 100*numpy.sum(traces,axis=axis_val)/traces.shape[axis_val],  
         "sum"             : numpy.sum(traces, axis=axis_val),
         "threshold"       : (traces > threshold),
-        "median_filter"   : ndimage.median_filter(traces, distance_val),
+        "median_filter"   : ndimage.median_filter(traces, distance_val)
     }
     # if the command is not found the data is returned untouched...
     return commandList.get(args['name'], traces)
@@ -219,7 +298,7 @@ def reduced_mem(dataIn, dataOut, func, keyword_arguments):
          - NOTE: the caller will end up with a complex matrix of numbers.
 '''
 def up_wave(data):
-    # Assume 2D FFT 
+    # Assume 2D FFT
     SMALL=1.0e-6
     m = len(data)
     n = len(data[0])
@@ -227,12 +306,12 @@ def up_wave(data):
     n_on_2 = n//2
     DATA = copy.deepcopy(data)
 
-    #DATA=numpy.fft.fft(data[a:a+running_window_length,:], axis=0)
     DATA[m_on_2:,:n_on_2]*=SMALL
     DATA[:m_on_2,n_on_2:]*=SMALL
     DATA[:m_on_2,n_on_2:]*=(1-SMALL)
     DATA[m_on_2:,:n_on_2]*=(1-SMALL)
-    return (numpy.fft.ifft2(DATA))
+    xp = GPU_CPU.get_numpy(DATA)
+    return (xp.fft.ifft2(DATA))
 
 '''
  down_wave - performs a 2D FFT, separates the up-going wave and returns the 2D iFFT
@@ -252,7 +331,8 @@ def down_wave(data):
     DATA[:m_on_2,n_on_2:]*=(1-SMALL)
     DATA[:m_on_2,n_on_2:]*=SMALL
     DATA[m_on_2:,:n_on_2]*=SMALL
-    return (numpy.fft.ifft2(DATA))
+    xp = GPU_CPU.get_numpy(DATA)
+    return (xp.fft.ifft2(DATA))
 
 '''
  source - Usage: pass in the results of up_wave and down_wave as up and down
@@ -260,7 +340,8 @@ def down_wave(data):
         -       (i.e. the cross-corrlation of the up and down wave is maximum at sources)
 '''
 def source(up,down):
-    return numpy.abs((up*numpy.conj(down)))
+    xp = GPU_CPU.get_numpy(up)
+    return xp.abs((up*xp.conj(down)))
 
 '''
  reflection - Usage: pass in the results of up_wave and down_wave as up and down
@@ -268,13 +349,15 @@ def source(up,down):
             -        (i.e. the down-data deconvolved from the up-data
 '''
 def reflection(up,down):
+    xp = GPU_CPU.get_numpy(up)
     TOLERANCE = 1.0e-7
-    return numpy.abs((up*numpy.conj(down))/((down*numpy.conj(down))+TOLERANCE))
+    return xp.abs((up*xp.conj(down))/((down*xp.conj(down))+TOLERANCE))
 
 '''
  vel_map - Returns the phase-velocity map in the 2D FFT space
 '''
 def vel_map(nx,nt,dx,dt):
+    # COULD BE GPU COMPATIBLE...BUT VEL_MASK IS NOT
     TOLERANCE=1.0e-7
     freq = numpy.linspace(0,1.0/(2*dt),nt//2)
     wavn = numpy.linspace(0,1.0/(2*dx),nx//2)
@@ -296,6 +379,7 @@ def vel_map(nx,nt,dx,dt):
         - sharp. The padtype='even' prevents strong filter edge effects.
 '''
 def vel_mask(velmap,vel_low,vel_high,smooth=0):
+    # NOT GPU COMPATIBLE DUE TO scipy.signal.filtfilt
     nx=velmap.shape[0]
     nt=velmap.shape[1]
     velm = numpy.zeros((nx,nt),dtype=numpy.double)
@@ -311,8 +395,9 @@ def vel_mask(velmap,vel_low,vel_high,smooth=0):
   multiple_calcs - allows a range of FBEs to be calculated using the reduced_mem calculation system
 '''
 def multiple_calcs(localData, low_freq, high_freq, func):
-    bulkOut = numpy.zeros((localData.shape[0],len(low_freq)),dtype=numpy.double)
-    oneOut = numpy.zeros((localData.shape[0],1))
+    xp = GPU_CPU.get_numpy(localData)    
+    bulkOut = xp.zeros((localData.shape[0],len(low_freq)),dtype=numpy.double)
+    oneOut = xp.zeros((localData.shape[0],1))
     for a in range(len(low_freq)):
         oneOut = reduced_mem(localData[:,low_freq[a]:high_freq[a]],oneOut, func, {})
         bulkOut[:,a]=numpy.squeeze(oneOut)
@@ -324,9 +409,10 @@ def multiple_calcs(localData, low_freq, high_freq, func):
 def running_max(data, running_window_length):
     nx = len(data)
     nt = len(data[0])
-    result = numpy.zeros((nx,nt),dtype=numpy.double)
+    xp = GPU_CPU.get_numpy(data)
+    result = xp.zeros((nx,nt),dtype=xp.double)
     for a in range(0,nx,running_window_length):
-        result[a,:]=numpy.max(data[a:a+running_window_length],axis=0)
+        result[a,:]=xp.max(data[a:a+running_window_length],axis=0)
     return result
 
 '''
@@ -335,9 +421,10 @@ def running_max(data, running_window_length):
 def running_min(data, running_window_length):
     nx = len(data)
     nt = len(data[0])
-    result = numpy.zeros((nx,nt),dtype=numpy.double)
+    xp = GPU_CPU.get_numpy(data)
+    result = xp.zeros((nx,nt),dtype=xp.double)
     for a in range(0,nx,running_window_length):
-        result[a,:]=numpy.min(data[a:a+running_window_length],axis=0)
+        result[a,:]=xp.min(data[a:a+running_window_length],axis=0)
     return result
 
 '''
@@ -347,6 +434,7 @@ def sta_lta(data, sta, lta):
     # Forward looking sta, backward looking lta...
     nx = len(data)
     nt = len(data[0])
+    # NOT GPU because of ndimage.uniform_filter
     sta_result = ndimage.uniform_filter(data,size=(1,sta),mode='nearest')/sta
     lta_result = ndimage.uniform_filter(data,size=(1,lta),mode='nearest')/lta
     lta_result[numpy.where(numpy.abs(lta_result)<1e-6)]=1e-6
@@ -356,6 +444,7 @@ def sta_lta(data, sta, lta):
  peak_to_peak : find the largest range occurring within the provided window
 '''
 def peak_to_peak(data,window_length):
+    # NOT GPU because of ndimage.maximum_filter
     nx = len(data)
     nt = len(data[0])
     half_length=int(window_length*0.5)
@@ -365,6 +454,7 @@ def peak_to_peak(data,window_length):
  count_peaks : count the number of peaks using scipy.signal.find_peaks_cwt
 '''
 def count_peaks(data,sta,lta):
+    # NOT GPU because of scipy.signal.find_peaks_cwt
     nx = len(data)
     nt = len(data[0])
     result=numpy.zeros((nx,1),dtype=numpy.int)
@@ -391,8 +481,9 @@ The returned result is still in the frequency domain
 def virtual_source(data,traceId):
     nx = data.shape[0]
     nt = data.shape[1]
-    sourceImage = numpy.reshape(numpy.tile(data[traceId,:],(nx,1)),(nx,nt))
-    return data*numpy.conj(sourceImage)
+    xp = GPU_CPU.get_numpy(data)
+    sourceImage = xp.reshape(xp.tile(data[traceId,:],(nx,1)),(nx,nt))
+    return data*xp.conj(sourceImage)
 
 '''
 the seismic sweetness attribute is the amplitude of the analytic signal
@@ -402,6 +493,7 @@ for potential hydrocarbons).
 '''
 def sweetness(data, dx):
     dk = 1/dx
+    # NOT GPU because of scipy.signal.hilbert
     analytic_signal = hilbert(data,axis=0)
     instantaneous_phase = numpy.unwrap(numpy.angle(analytic_signal))
     instantaneous_frequency = (numpy.diff(instantaneous_phase) /(2.0*numpy.pi*dk)) 
@@ -418,17 +510,18 @@ this is a frequency domain evaluation
 def scattering_matrix(up, down, ispan):
     Pup = up
     Pdown = down
-    Qup = numpy.roll(up,ispan,axis=0)
-    Qdown = numpy.roll(down,ispan,axis=0)
-    denominator = (Pdown*numpy.conj(Qdown))-(numpy.conj(Pup)*Qup)
+    xp = GPU_CPU.get_numpy(up)
+    Qup = xp.roll(up,ispan,axis=0)
+    Qdown = xp.roll(down,ispan,axis=0)
+    denominator = (Pdown*xp.conj(Qdown))-(xp.conj(Pup)*Qup)
     # threshold of 100 - seem high???
-    denominator = numpy.sign(denominator)/(abs(denominator)+100.0)
+    denominator = xp.sign(denominator)/(xp.abs(denominator)+100.0)
 
     # scattering matrix
-    Rdown=(Pup*numpy.conj(Qdown))  -(numpy.conj(Pdown)*Qup)
-    Tup  =(Pdown*numpy.conj(Pdown))-(Pup*numpy.conj(Pup))
-    Tdown=(Qdown*numpy.conj(Qdown))-(Qup*numpy.conj(Qup))
-    Rup  =(Pdown*numpy.conj(Qup))  -(numpy.conj(Pup)*Qdown)
+    Rdown=(Pup*xp.conj(Qdown))  -(xp.conj(Pdown)*Qup)
+    Tup  =(Pdown*xp.conj(Pdown))-(Pup*xp.conj(Pup))
+    Tdown=(Qdown*xp.conj(Qdown))-(Qup*xp.conj(Qup))
+    Rup  =(Pdown*xp.conj(Qup))  -(xp.conj(Pup)*Qdown)
     # denominator correction
     Rdown = Rdown*denominator
     Tup   = Tup*denominator
@@ -448,36 +541,38 @@ def destripe(localData):
     TOLERANCE=1.0e-6
     dt=1
     dx=1
+    xp = GPU_CPU.get_numpy(localData)
     nx = len(localData)
     nt = len(localData[0])
-    freq = numpy.linspace(0,1.0/(2*dt),numpy.int(nt/2))
-    frequency = numpy.zeros((1,nt),dtype=numpy.double)
-    frequency[0,0:numpy.int(nt/2)]=freq
-    frequency[0,numpy.int(nt/2):]=numpy.flipud(freq)
-    wavn = numpy.linspace(0,1.0/(2*dx),numpy.int(nx/2))
-    wavenumber = numpy.zeros((nx,1),dtype=numpy.double)
-    wavenumber[0:numpy.int(nx/2)]=numpy.reshape(wavn,(numpy.int(nx/2),1))
-    wavenumber[numpy.int(nx/2):]=numpy.reshape(numpy.flipud(wavn),(numpy.int(nx/2),1))
-    freqImage = numpy.reshape(numpy.tile(frequency,(nx,1)),(nx,nt))
-    wavnImage = numpy.reshape(numpy.tile(wavenumber,(1,nt)),(nx,nt))
+    freq = xp.linspace(0,1.0/(2*dt),xp.int(nt/2))
+    frequency = xp.zeros((1,nt),dtype=xp.double)
+    frequency[0,0:xp.int(nt/2)]=freq
+    frequency[0,xp.int(nt/2):]=xp.flipud(freq)
+    wavn = xp.linspace(0,1.0/(2*dx),xp.int(nx/2))
+    wavenumber = xp.zeros((nx,1),dtype=xp.double)
+    wavenumber[0:xp.int(nx/2)]=xp.reshape(wavn,(xp.int(nx/2),1))
+    wavenumber[xp.int(nx/2):]=numpy.reshape(xp.flipud(wavn),(xp.int(nx/2),1))
+    freqImage = xp.reshape(xp.tile(frequency,(nx,1)),(nx,nt))
+    wavnImage = xp.reshape(xp.tile(wavenumber,(1,nt)),(nx,nt))
     #Rx = (freqImage*freqImage)/((freqImage*freqImage)+(wavnImage*wavnImage)+TOLERANCE)
     #Rx[Rx<1e-6]=1e-6
     Ry = (wavnImage*wavnImage)/((freqImage*freqImage)+(wavnImage*wavnImage)+TOLERANCE)
     Ry[Ry<1e-6]=1e-6
-    return numpy.real(numpy.fft.ifft2(numpy.fft.fft2(localData)*Ry))
+    return xp.real(xp.fft.ifft2(xp.fft.fft2(localData)*Ry))
 
 '''
  acoustic_properties : the eigenvalues of the scattering matrix
 '''
 def acoustic_properties(Rdown,Tup,Tdown,Rup):
-    tl=1-(numpy.conj(Rdown)*Rdown+Tdown*numpy.conj(Tdown))
-    tr=(numpy.conj(Rdown)*Tup)+(numpy.conj(Tdown)*Rup)
-    bl=(nump.conj(Tup)*Rdown)+(numpy.conj(Rup)*Tdown)
-    br=1-((numpy.conj(Tup)*Tup)+(numpy.conj(Rup)*Rup))
+    xp = GPU_CPU.get_numpy(Tup)
+    tl=1-(xp.conj(Rdown)*Rdown+Tdown*xp.conj(Tdown))
+    tr=(xp.conj(Rdown)*Tup)+(xp.conj(Tdown)*Rup)
+    bl=(xp.conj(Tup)*Rdown)+(xp.conj(Rup)*Tdown)
+    br=1-((xp.conj(Tup)*Tup)+(xp.conj(Rup)*Rup))
     detS=(tl*br)-(tr*bl)
     traceS=tl+br
-    eval1=numpy.real(0.5*(traceS+sqrt((traceS**2)-(4*detS))))
-    eval2=numpy.real(0.5*(traceS-sqrt((traceS**2)-(4*detS))))
+    eval1=xp.real(0.5*(traceS+sqrt((traceS**2)-(4*detS))))
+    eval2=xp.real(0.5*(traceS-sqrt((traceS**2)-(4*detS))))
     return (eval1, eval2)
 
 '''
@@ -488,7 +583,8 @@ log_abs_sq : useful for computing the cepstrum if data is already in the frequen
                     fft -> log_abs_sq -> ifft -> abs
 '''
 def log_abs_sq(data):
-     return numpy.log(numpy.abs(data)**2)
+    xp = GPU_CPU.get_numpy(data)
+    return xp.log(xp.abs(data)**2)
 
 '''
  hash : take the next 64 values above and below 0.5 (assume the previous calculation
@@ -496,7 +592,8 @@ def log_abs_sq(data):
         Convert to a single 64-bit integer
 '''
 def hash(data,ioffset=0):
-    outData = numpy.zeros((data.shape[0],1),dtype=numpy.uint64)
+    xp = GPU_CPU.get_numpy(data)
+    outData = xp.zeros((data.shape[0],1),dtype=xp.uint64)
     for a in range(data.shape[0]):
         outData[a] = sum(int(j)<<int(i) for i,j, in enumerate(reversed((data[a,ioffset:ioffset+64]).flatten().tolist())))
     return outData
@@ -510,5 +607,5 @@ def available_funcs(funcName):
     if funcName=='rms_from_fft':
         return rms_from_fft
     if funcName=='fft':
-        return numpy.fft.fft
+        return agnostic_fft
 

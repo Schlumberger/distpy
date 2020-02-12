@@ -50,5 +50,6 @@ __status__ = 'Pre-alpha'
 # 1.10.0 Support for proprietary extensions
 # 1.10.1 Extra protection against divide by zero in sgy.py
 # 1.11.0 Enabled the basic statistical summaries
-__version__ = '1.11.0'
+# 1.12.0 Enabled the GPU options
+__version__ = '1.12.0'
 

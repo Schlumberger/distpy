@@ -103,7 +103,7 @@ def dot_graph(jsonArgs):
 #     write2witsml   : output results to the real-time WITSML 1.3.1 format
 #     thumbnail_plot : outputa 2D array (e.g. 1 second from SEGY) to a thumbnail image
 #     json_io        : handle reading and writing of JSON to different storage targets
-#     command2md     : markdown representation of the signal processing workflow
+#     command2md     : markdown representation of a single command
 def command2latex(command_list,linesOut,section='Command Set',topline='Commands used'):
     lines=[]
     lines.append('\\section{'+section+'}')
@@ -122,6 +122,10 @@ def command2latex(command_list,linesOut,section='Command Set',topline='Commands 
                 if 'default' in localDoc['args'][arg]:
                     lines.append('\\\\default : '+str(localDoc['args'][arg]['default']))
             lines.append('\\end{description}')
+        if command.isGPU()==True:
+            lines.append('This command can be used with GPU.')
+        else:
+            lines.append('This command cannot be used with GPU.')
                  
     #doc.generate_pdf(fileout,clean_tex=False, compiler='C:\\Users\\miw\\AppData\\Local\\Programs\\MiKTeX 2.9\\miktex\\bin\\x64\\pdflatex.exe')
     lines = substitute(lines,'_','\\textunderscore ')
@@ -131,22 +135,20 @@ def command2latex(command_list,linesOut,section='Command Set',topline='Commands 
 
 
     
-def command2md(command_list):
-    lines=[]
-    lines.append("---------Workflow documentation---------")
-    lines.append("# Command Set")
-    for command in command_list:
-        localDoc = command.docs()            
-        lines.append('## '+command.get_name())
-        if 'one_liner' in localDoc:
-            lines.append(localDoc['one_liner'])
-        if 'args' in localDoc:
-            for arg in localDoc['args']:
-                lines.append('### '+arg)
-                lines.append(localDoc['args'][arg]['description'])
-                if 'default' in localDoc['args'][arg]:
-                    lines.append('default :'+str(localDoc['args'][arg]['default']))
-    lines.append("---------Workflow documentation---------")
+def command2md(command, lines):
+    localDoc = command.docs()            
+    lines.append('## '+command.get_name())
+    if 'one_liner' in localDoc:
+        lines.append(localDoc['one_liner'])
+    if 'args' in localDoc:
+        for arg in localDoc['args']:
+            lines.append('`'+arg+'` : '+localDoc['args'][arg]['description'])
+            if 'default' in localDoc['args'][arg]:
+                lines.append('default : '+str(localDoc['args'][arg]['default']))
+    if command.isGPU()==True:
+        lines.append('This command can be used with GPU.')
+    else:
+        lines.append('This command cannot be used with GPU.')
     return lines
 
 '''

@@ -31,9 +31,13 @@ class ThumbnailCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
         self._dirname = jsonArgs.get('directory_out','NONE')
-        self._fname = jsonArgs.get('date_dir','NONE')        
-        self._xaxis = [jsonArgs['xaxis'][0],jsonArgs['xaxis'][-1]]
-        self._taxis = [0,jsonArgs['nt']/jsonArgs['prf']]
+        self._fname = jsonArgs.get('date_dir','NONE')
+        if "xaxis" in jsonArgs:
+            self._xaxis = [jsonArgs['xaxis'][0],jsonArgs['xaxis'][-1]]
+            self._taxis = [0,jsonArgs['nt']/jsonArgs['prf']]
+        else:
+            self._xaxis = [0,1]
+            self._taxis = [0,1]
         self._format = jsonArgs.get('format','png')
         self._std_val_mult = jsonArgs.get('clip_level',1.0)
 
