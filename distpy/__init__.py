@@ -40,5 +40,6 @@ __status__ = 'Pre-alpha'
 # 1.11.0 Enabled the basic statistical summaries
 # 1.12.0 Enabled the GPU options
 # 1.13.0 Added an additional h5 reader option
-__version__ = '1.13.0'
+# 1.14.0 Added the keras command
+__version__ = '1.14.0'
 

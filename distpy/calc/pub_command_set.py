@@ -35,7 +35,8 @@ universal_arglist = {
     "directory_in" :  {DEFAULT : NONE, DESC : "The subdirectory from which to read data"},
     "directory_out" : {DEFAULT : NONE, DESC : "The subdirectory where results will be written"},
     "command_list" :  {                DESC : "A list of sub-commands collected in a single macro"},
-    "func" :          {                DESC : "Either rms_from_fft or te_from_fft"},
+    "train" :         {                DESC : "A dictionary containing training parameters for kera, e.g. {'epochs':150,'batch_size':10"},
+    "func" :          {                DESC : "Either rms_from_fft or te_from_fft"}, 
     "labels" :        {                DESC : "A list of column headers"},
     "order" :         {DEFAULT : 5,    DESC : "The order for a filter calculation such as the Butterworth filter"},
     "type" :          {DEFAULT : "lowpass",DESC : "The type of a filter which can be lowpass, highpass, bandpass, or bandstop"},
@@ -237,6 +238,31 @@ class AbsCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_abs(self._previous.result())
+'''
+ KerasCommand : wrappers the extra_numpy.kera_model() function
+'''
+class KerasCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._args = jsonArgs
+        self._prevstack = jsonArgs.get('commands',[None])
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the kurtosis of the input using scipy.stats.kurtosis(). Use k statistics to eliminate bias and omit any NaNs."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['filename','train'] }
+        return docs
+
+    def execute(self):
+        train = self._args.get('train',None)
+        filename = self._args.get('filename',None)
+        Y = None
+        if self._prevstack[0] is not None:
+            Y = self._prevstack[0].result()
+        self._result = extra_numpy.keras_model(self._previous.result(),filename,Y=Y,train=train)
+
+
+
 '''
  KurtosisCommand : wrappers the scipy.stats.kurtosis() function
 '''
@@ -1066,6 +1092,7 @@ def KnownCommands(knownList):
     knownList['geometric_mean'] = GeometricMeanCommand
     knownList['harmonic_mean']  = HarmonicMeanCommand
     knownList['ifft']           = IFFTCommand
+    knownList['keras']          = KerasCommand
     knownList['kurtosis']       = KurtosisCommand
     knownList['macro']          = MacroCommand
     knownList['median_filter']  = MedianFilterCommand

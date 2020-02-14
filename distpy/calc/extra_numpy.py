@@ -4,6 +4,7 @@
 
 import numpy
 import datetime
+from keras.models import load_model
 
 import distpy.calc.agnostic as agnostic
 
@@ -24,7 +25,8 @@ GPU_CPU = agnostic.agnostic()
 
 # extra functions for image cleanup (i.e. introduced for plotting, but
 # all are 1 or 2D data signal processing so belong in here)
-# https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+# https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+
 def normalized(a, axis=-1, order=2):
     xp = GPU_CPU.get_numpy(a)
     l2 = xp.atleast_1d(xp.linalg.norm(a, order, axis))
@@ -597,7 +599,22 @@ def hash(data,ioffset=0):
     for a in range(data.shape[0]):
         outData[a] = sum(int(j)<<int(i) for i,j, in enumerate(reversed((data[a,ioffset:ioffset+64]).flatten().tolist())))
     return outData
-    
+
+'''
+  keras_model : load a saved keras model for evaluation or further training
+'''
+def keras_model(data,kerasfile,Y=None,train=None):
+    # NULL behaviour is to simply return the input
+    if kerasfile is None:
+        return data
+    model = load_model(kerasfile)
+    if train is not None:
+        epochs = train.get('epochs',150)
+        batch_size = train.get('batch_size',10)
+        model.fit(data,Y,epochs=epochs,batch_size=batch_size,verbose=0)
+        model.save(kerasfile)
+        model.evaluate(data,Y,verbose=0)
+    return model.predict(data)
 '''
  available_funcs : these are the functions for which the reduced_mem options are available.
 '''

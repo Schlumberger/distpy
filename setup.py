@@ -95,7 +95,8 @@ def setup_package():
               'numba',
               'matplotlib',
               'h5py',
-              'pandas'
+              'pandas',
+              'keras'
               ],
           zip_safe = False
            )
