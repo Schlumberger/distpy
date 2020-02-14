@@ -2,18 +2,6 @@ from __future__ import division, absolute_import, print_function
 
 __all__ = ['io_help','calc','controllers','ingesters','workers']
 
-#from . import io_help
-#from . import calc
-#from . import controllers
-#from . import ingesters
-#from . import workers
-#from .io_help import *
-#from .calc import *
-#from .workers import *
-#from .ingesters import *
-#from .controllers import *
-
-
 __copyright__ = '(C) 2020, Schlumberger. Refer to LICENSE'
 __license__ = '../LICENSE'
 __status__ = 'Pre-alpha'
@@ -51,5 +39,6 @@ __status__ = 'Pre-alpha'
 # 1.10.1 Extra protection against divide by zero in sgy.py
 # 1.11.0 Enabled the basic statistical summaries
 # 1.12.0 Enabled the GPU options
-__version__ = '1.12.0'
+# 1.13.0 Added an additional h5 reader option
+__version__ = '1.13.0'
 

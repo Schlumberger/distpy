@@ -35,9 +35,9 @@ def list_keys(root, basepath):
             pass
 
 '''
- ingest_h5 : recursively try to dump matrices and arrays as numpy *.npy files
+ read_h5 : recursively try to dump matrices and arrays as numpy *.npy files - blindly...
 '''
-def ingest_h5(root, basepath):
+def read_h5(root, basepath):
     for value in root.values():
         try:
             # failure is based on value.shape throwing an exception in the print statement
@@ -59,6 +59,104 @@ def ingest_h5(root, basepath):
             pass
 
 '''
+ type0_h5  : a first example of hdf5 import.
+             Reads an h5 file. First version supports files that write 1-second
+             chunks in a 'data','depth,'time' format.
+'''
+def type0_h5(readObj, basepath, filename):
+    # filename contains datestamp...
+    # 161215_053839.h5
+    # 1234567890123456
+    endFname = filename[-16:]
+    day = int(endFname[:2])
+    month = int(endFname[2:4])
+    year = int(endFname[4:6])
+    hour = int(endFname[7:9])
+    minute = int(endFname[9:11])
+    second = int(endFname[11:13])
+    timeObj = dtime(2000+year,month,day,hour,minute,second)
+    unixtime = timeObj.timestamp()
+    print(str(unixtime))
+
+
+    numpy.save(os.path.join(basepath,'measured_depth.npy'),readObj['depth'][()])
+    total_traces = readObj['data'].shape[0]
+    chunksize = readObj['data'].chunks[0]
+    increment=0
+    for a in range(0,total_traces,chunksize):
+        fname = str(int(unixtime+increment))+'.npy'
+        fullPath = os.path.join(basepath,fname)
+        if not os.path.exists(fullPath):
+            numpy.save(fullPath,readObj['data'][a:a+chunksize,:].transpose())
+        else:
+            print(fullPath,' exists, assuming restart run and skipping.')
+        increment+=1
+
+'''
+ type1_h5  : A common HDF5 format used in DAS
+     depth = '/Acquisition/FacilityCalibration[0]/Calibration[0]/LocusDepthPoint' in readObj
+     time  = '/Acquisition/Raw[0]/RawDataTime' in readObj
+     data  = '/Acquisition/Raw[0]/RawData' in readObj
+
+     This example is given in https://github.com/Schlumberger/distpy/wiki/Dev-Tutorial-:-Extending-distpy-with-new-ingesters
+'''
+def type1_h5(readObj, basepath):
+    depths = readObj['/Acquisition/FacilityCalibration[0]/Calibration[0]/LocusDepthPoint']
+    times  = readObj['/Acquisition/Raw[0]/RawDataTime']
+    
+    # The data can be large - so don't read it all into memory at once.
+    data_name = '/Acquisition/Raw[0]/RawData'
+
+    time_vals = numpy.zeros((times.shape[0]))
+    for a in range(times.shape[0]):
+        time_vals[a] = times[a]*1e-6
+    prf = int(numpy.round(1.0/numpy.mean(time_vals[1:]-time_vals[:-1])))
+
+
+    depth_vals = numpy.zeros((depths.shape[0]))
+    for a in range(depths.shape[0]):
+        tuple_val = depths[a]
+        depth_vals[a] = tuple_val[1]
+    numpy.save(os.path.join(basepath,'measured_depth.npy'),depth_vals)
+
+    unixtime = int(time_vals[0])
+    print(str(unixtime))
+
+    # How many 1 second files to write from this HDF5
+    nsecs = int(times.shape[0]/prf)
+    ii=0
+    for a in range(nsecs):
+        fname = str(int(unixtime+a))+'.npy'
+        fullPath = os.path.join(basepath,fname)
+        if not os.path.exists(fullPath):
+            numpy.save(fullPath,readObj[data_name][ii:ii+prf,:].transpose())
+        else:
+            print(fullPath,' exists, assuming restart run and skipping.')
+        ii+=1
+
+'''
+ ingest_h5 : select the reader that recognizes the file type, and read the file
+'''
+def ingest_h5(filename,basepath):
+    readObj = h5py.File(filename,'r')
+    
+    # TYPE 0:
+    depth = 'depth' in readObj
+    #time  = '/Acquisition/Raw[0]/RawDataTime' in readObj
+    data  = 'data' in readObj
+    if depth and data:
+        type0_h5(readObj,basepath,filename)
+    
+    # TYPE 1:
+    depth = '/Acquisition/FacilityCalibration[0]/Calibration[0]/LocusDepthPoint' in readObj
+    time  = '/Acquisition/Raw[0]/RawDataTime' in readObj
+    data  = '/Acquisition/Raw[0]/RawData' in readObj
+    if depth and time and data:
+        type1_h5(readObj,basepath)
+    readObj.close()
+
+
+'''
  main : two modes, WRITE_DATA==True - recursively try to dump data
                    WRITE_DATA==False - recursively list the key-value contents of the file
 
@@ -74,7 +172,7 @@ def main():
     if WRITE_DATA==False:
         list_keys(readObj,basepath)
     else:
-        ingest_h5(readObj, basepath)
+        read_h5(readObj, basepath)
     readObj.close()
 
 

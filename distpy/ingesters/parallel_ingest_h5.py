@@ -9,6 +9,7 @@ import argparse
 import os
 import multiprocessing
 import distpy.io_help.io_helpers as io_helpers
+import distpy.io_help.h5_helpers as h5_helpers
 import distpy.io_help.directory_services as ds
 
 def main(configOuterFile):
@@ -27,7 +28,7 @@ def main(configOuterFile):
     if not PARALLEL:
         for fname in h5_files:
             print(fname)
-            io_helpers.ingest_h5(fname, dirout)
+            h5_helpers.ingest_h5(fname, dirout)
     else:
         manager = multiprocessing.Manager()
         q = manager.Queue()
@@ -37,7 +38,7 @@ def main(configOuterFile):
 
         jobs = []
         for fname in h5_files:
-            job = pool.apply_async(io_helpers.ingest_h5, [fname,dirout])
+            job = pool.apply_async(h5_helpers.ingest_h5, [fname,dirout])
             print(job)
             jobs.append(job)
 

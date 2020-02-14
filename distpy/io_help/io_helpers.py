@@ -278,40 +278,6 @@ class json_io(object):
             return json.loads(configjson.decode("utf-8"))
 
 '''
- ingest_h5 : a first example of hdf5 import.
-             Reads an h5 file. First version supports files that write 1-second
-             chunks in a 'data','depth,'time' format.
-'''
-def ingest_h5(filename, basepath):
-    # filename contains datestamp...
-    # 161215_053839.h5
-    # 1234567890123456
-    endFname = filename[-16:]
-    day = int(endFname[:2])
-    month = int(endFname[2:4])
-    year = int(endFname[4:6])
-    hour = int(endFname[7:9])
-    minute = int(endFname[9:11])
-    second = int(endFname[11:13])
-    timeObj = dtime(2000+year,month,day,hour,minute,second)
-    unixtime = timeObj.timestamp()
-    print(str(unixtime))
-    readObj = h5py.File(filename,'r')
-    numpy.save(os.path.join(basepath,'measured_depth.npy'),readObj['depth'][()])
-    total_traces = readObj['data'].shape[0]
-    chunksize = readObj['data'].chunks[0]
-    increment=0
-    for a in range(0,total_traces,chunksize):
-        fname = str(int(unixtime+increment))+'.npy'
-        fullPath = os.path.join(basepath,fname)
-        if not os.path.exists(fullPath):
-            numpy.save(fullPath,readObj['data'][a:a+chunksize,:].transpose())
-        else:
-            print(fullPath,' exists, assuming restart run and skipping.')
-        increment+=1
-    readObj.close()
-
-'''
  ingest_csv :  Reads a chunk from a CSV file - note that we have DTS data which
                is often double-ended
 '''
