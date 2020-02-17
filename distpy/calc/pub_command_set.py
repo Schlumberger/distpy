@@ -35,7 +35,7 @@ universal_arglist = {
     "directory_in" :  {DEFAULT : NONE, DESC : "The subdirectory from which to read data"},
     "directory_out" : {DEFAULT : NONE, DESC : "The subdirectory where results will be written"},
     "command_list" :  {                DESC : "A list of sub-commands collected in a single macro"},
-    "train" :         {                DESC : "A dictionary containing training parameters for kera, e.g. {'epochs':150,'batch_size':10"},
+    "train" :         {                DESC : "A dictionary containing training parameters for keras, e.g. { 'epochs' : 150, 'batch_size' : 10 }"},
     "func" :          {                DESC : "Either rms_from_fft or te_from_fft"}, 
     "labels" :        {                DESC : "A list of column headers"},
     "order" :         {DEFAULT : 5,    DESC : "The order for a filter calculation such as the Butterworth filter"},
@@ -249,7 +249,7 @@ class KerasCommand(BasicCommand):
 
     def docs(self):
         docs={}
-        docs['one_liner']="Take the kurtosis of the input using scipy.stats.kurtosis(). Use k statistics to eliminate bias and omit any NaNs."
+        docs['one_liner']="Load an existing keras model, and either use it for prediction or train-then-predict."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['filename','train'] }
         return docs
 
