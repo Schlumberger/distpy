@@ -5,6 +5,7 @@
 import numpy
 import datetime
 from keras.models import load_model
+from sklearn.cluster import KMeans
 
 import distpy.calc.agnostic as agnostic
 
@@ -182,6 +183,13 @@ def gather(data,prevstack):
             nt += 1
         ntold=nt
     return result
+
+'''
+ kmeans_clustering : kmeans clustering. Simplest use of KMeans.
+'''
+def kmeans_clustering(data, n_clusters=10):
+    cluster = KMeans(n_clusters=n_clusters).fit(data)
+    return cluster.labels_
 
 '''
  interp - a wrapper around numpy's 1d interpolation

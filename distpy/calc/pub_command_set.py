@@ -51,6 +51,7 @@ universal_arglist = {
     "torder" :        {DEFAULT : 5,     DESC : "In a 2D filter, this is the order in the t-direction"},
     "distance" :      {DEFAULT : 3,     DESC : "The number of samples in a median filter"},
     "window_length" : {DEFAULT : 5,     DESC : "The length of a running mean window"},
+    "n_clusters" :    {DEFAULT : 10,    DESC : "The number of clusters to use when classifying the data"},
     "offset" :        {DEFAULT : 0,     DESC : "An offset from the start of the data, in samples"},
     "xmin" :          {DEFAULT : None,  DESC : "A minimum value on the x-axis"},
     "xmax" :          {DEFAULT : None,  DESC : "A maximum value on the x-axis"},
@@ -260,6 +261,24 @@ class KerasCommand(BasicCommand):
         if self._prevstack[0] is not None:
             Y = self._prevstack[0].result()
         self._result = extra_numpy.keras_model(self._previous.result(),filename,Y=Y,train=train)
+
+'''
+ KMeansCommand : wrappers the extra_numpy.kmeans_clustering() function
+'''
+class KMeansCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._args = jsonArgs
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Load an existing keras model, and either use it for prediction or train-then-predict."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['n_clusters'] }
+        return docs
+
+    def execute(self):
+        n_clusters = self._args.get('n_clusters',10)
+        self._result = extra_numpy.kmeans_clustering(self._previous.result(),n_clusters=n_clusters)
 
 
 
@@ -1093,6 +1112,7 @@ def KnownCommands(knownList):
     knownList['harmonic_mean']  = HarmonicMeanCommand
     knownList['ifft']           = IFFTCommand
     knownList['keras']          = KerasCommand
+    knownList['kmeans']         = KMeansCommand
     knownList['kurtosis']       = KurtosisCommand
     knownList['macro']          = MacroCommand
     knownList['median_filter']  = MedianFilterCommand
