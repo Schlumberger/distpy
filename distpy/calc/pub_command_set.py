@@ -272,7 +272,7 @@ class KMeansCommand(BasicCommand):
 
     def docs(self):
         docs={}
-        docs['one_liner']="Load an existing keras model, and either use it for prediction or train-then-predict."
+        docs['one_liner']="Perform a KMeans clustering into a fixed number of clusters. Return the cluster number versus depth."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['n_clusters'] }
         return docs
 

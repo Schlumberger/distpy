@@ -43,5 +43,6 @@ __status__ = 'Pre-alpha'
 # 1.14.0 Added the keras command
 # 1.14.1 Corrected the auto-generated documentation on the keras command
 # 1.15.0 Added the kmeans command
-__version__ = '1.15.0'
+# 1.15.1 Corrected the auto-generated documentation on the kmeans command
+__version__ = '1.15.1'
 
