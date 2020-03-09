@@ -23,7 +23,7 @@
  { "title_text" : "Band 0", "data" : "band_0-nyquist.npy", "colormap" : "UAVK" },
  { "title_text" : "Band 1", "data" : "band_01_200--1.npy", "colormap" : "magma" },
  { "title_text" : "Band 2", "data" : "band_02_600--1.npy", "colormap" : "cividis" },
- { "title_text" : "Band 3", "data" : "band_03_1000--1.npy", "colormap" : "plasma" },
+ { "title_text" : "Band 3", "data" : "band_03_1000--1.npy", "colormap" : "plasma" } ]
 },
 {
 "plot_type" : "stack",
