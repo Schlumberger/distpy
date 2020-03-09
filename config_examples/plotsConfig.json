@@ -1,0 +1,45 @@
+{
+"figure_size" : [ 36, 12],
+"dpi" : 100,
+"start_of_fibre" : 0,
+"end_of_fibre" : 480,
+"time_reference" : "time.npy",
+"depth_reference" : "measured_depth.npy",
+"depth_display_unit" : "ft",
+"well_segments" : "/home/projects/jobInfo/segments.txt",
+
+"label_list" : [ 
+{"event_label_start" : 200, "event_mark" : "2015-06-28 13:20:00", "event_text" : "Well Shut in" },
+{"event_label_start" : 300, "event_mark" : "2015-06-28 14:09:00", "event_text" : "Open Well 100 bbl/day" },
+{"event_label_start" : 400, "event_mark" : "2015-06-28 14:20:00", "event_text" : "open well 450 bbl/day" },
+{"event_label_start" : 600, "event_mark" : "2015-06-28 14:21:00", "event_text" : "Well Shut in" },
+{"event_label_start" : 600, "event_mark" : "2015-06-28 14:25:00", "event_text" : "system stop" }],
+
+"plots" : [
+{
+"plot_type" : "well_log",
+"out_plot" : "ALL_BANDS",
+"plot_list" : [ 
+ { "title_text" : "Band 0", "data" : "band_0-nyquist.npy", "colormap" : "UAVK" },
+ { "title_text" : "Band 1", "data" : "band_01_200--1.npy", "colormap" : "magma" },
+ { "title_text" : "Band 2", "data" : "band_02_600--1.npy", "colormap" : "cividis" },
+ { "title_text" : "Band 3", "data" : "band_03_1000--1.npy", "colormap" : "plasma" },
+},
+{
+"plot_type" : "stack",
+"out_plot" : "STACK",
+"plot_list" : [ 
+ { "title_text" : "Band 1", "data" : "band_01_200--1.npy", "colormap" : "viridis", "alpha" : "0.25"},
+ { "title_text" : "Band 2", "data" : "band_02_600--1.npy", "colormap" : "plasma", "alpha" : "0.25"},
+ { "title_text" : "Band 3", "data" : "band_03_1000--1.npy", "colormap" : "inferno", "alpha" : "0.25"} ]
+},
+{
+"plot_type" : "rgb",
+"out_plot" : "RGB",
+"plot_list" : [ 
+ { "title_text" : "Band 1", "data" : "band_01_200--1.npy", "inverted" : "yes"},
+ { "title_text" : "Band 2", "data" : "band_02_600--1.npy", "inverted" : "yes"},
+ { "title_text" : "Band 4", "data" : "band_04_1000--1.npy", "inverted" : "yes"} ]
+}
+] 
+}

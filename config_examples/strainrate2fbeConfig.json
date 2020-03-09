@@ -1,0 +1,13 @@
+{
+    "in_drive": "/scratch/myusername",
+    "out_drive": "/home/projects/",
+    "project": "2020prj0001",
+    "data": "sgy_data",
+    "results": "witsml",
+    "parallel_flag": 1,
+    "ncpu": 32,
+    "measured_depth": "measured_depth.npy",
+    "prf": 10000,
+    "BOX_SIZE": 500,
+    "config": "/home/projects/2020prj0001/config/strainrate2noiselog.json"
+}
