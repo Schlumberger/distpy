@@ -478,7 +478,7 @@ class AnalyticSignalCommand(BasicCommand):
     def docs(self):
         docs={}
         docs['one_liner']="Estimate the analytic signal using a locally filtered maximum likelihood method"
-        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','window_length'] }
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','freq','window_length'] }
         return docs
 
     def isGPU(self):
