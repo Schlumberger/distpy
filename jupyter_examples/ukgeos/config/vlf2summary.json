@@ -1,0 +1,13 @@
+{
+"document" : 0,
+"name" : "Strain-rate attributes",
+"description" : "Process low frequency particle velocity data to time frequency analysis of strain-rate.",
+"command_list" :
+[
+ { "name" : "diff",     "uid" :  1, "in_uid" :  0, "axis" : 0 },
+ { "name" : "mean",     "uid" :  2, "in_uid" :  1, "axis" : 0 },
+ { "name" : "fft",            "uid" :  3, "in_uid" :  2 },
+ { "name" : "abs",            "uid" :  4, "in_uid" :  3 },
+ { "name" : "write_witsml",   "uid" :  5, "in_uid" :  4, "directory_out" : "tfa", "labels" : ["vlf","tfa"],  "gather_uids" : [2], "data_style" : "tfa" }
+]
+}

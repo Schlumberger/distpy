@@ -1,0 +1,12 @@
+{
+"document" : 0,
+"name" : "RMS attributes",
+"description" : "Process RMS noise data to time frequency analysis.",
+"command_list" :
+[
+ { "name" : "mean",     "uid" :  1, "in_uid" :  0, "axis" : 0 },
+ { "name" : "fft",            "uid" :  2, "in_uid" :  1 },
+ { "name" : "abs",            "uid" :  3, "in_uid" :  2 },
+ { "name" : "write_witsml",   "uid" :  4, "in_uid" :  3, "directory_out" : "tfa", "labels" : ["rms","tfa"],  "gather_uids" : [1], "data_style" : "tfa" }
+]
+}

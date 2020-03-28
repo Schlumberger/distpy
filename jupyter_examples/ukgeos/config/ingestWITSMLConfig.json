@@ -1,0 +1,10 @@
+{
+ "in_drive"  : "C:/NotBackedUp",
+ "out_drive" : "C:/NotBackedUp",
+ "project"   : "ukgeos",
+ "data"      : "witsml",
+ "results"   : "interpretation",
+ "BOX_SIZE"  : 3600,
+ "parallel_flag"  : 0,
+ "ncpu"      : 1
+}

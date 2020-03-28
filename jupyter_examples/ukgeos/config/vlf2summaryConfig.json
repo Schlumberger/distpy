@@ -1,0 +1,13 @@
+{
+    "in_drive": "C:/NotBackedUp/ukgeos/interpretation",
+    "out_drive": "C:/NotBackedUp/ukgeos",
+    "project": "vlf",
+    "data": "vlf",
+    "results": "witsml",
+    "parallel_flag": 0,
+    "ncpu": 4,
+    "measured_depth": "measured_depth.npy",
+    "prf": 500,
+    "BOX_SIZE": 500,
+    "config": "C:/NotBackedUp/ukgeos/config/vlf2summary.json"
+}

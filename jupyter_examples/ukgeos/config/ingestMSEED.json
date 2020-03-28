@@ -1,0 +1,9 @@
+{
+ "in_drive"  : "C:/NotBackedUp",
+ "out_drive" : "C:/NotBackedUp",
+ "project"   : "ukgeos",
+ "data"      : "raw_data",
+ "results"   : "ingested_data",
+ "parallel_flag"  : 0,
+ "ncpu"      : 1
+}

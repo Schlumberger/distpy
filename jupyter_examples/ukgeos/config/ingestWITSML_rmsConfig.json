@@ -1,0 +1,10 @@
+{
+ "in_drive"  : "C:/NotBackedUp/ukgeos",
+ "out_drive" : "C:/NotBackedUp/ukgeos",
+ "project"   : "vlf",
+ "data"      : "rms_witsml",
+ "results"   : "rms_interpretation",
+ "BOX_SIZE"  : -1,
+ "parallel_flag"  : 0,
+ "ncpu"      : 1
+}

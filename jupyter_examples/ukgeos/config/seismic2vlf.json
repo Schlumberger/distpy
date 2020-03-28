@@ -1,0 +1,12 @@
+{
+"document" : 0,
+"name" : "Approximate very low frequency results",
+"description" : "Creates an estimate of the very low frequency response and the RMS of the data overall.",
+"command_list" :
+[
+ { "name" : "approx_vlf",     "uid" :  1, "in_uid" :  0 },
+ { "name" : "fft",            "uid" :  2, "in_uid" :  0 },
+ { "name" : "rms_from_fft",   "uid" :  3, "in_uid" :  2, "low_freq" : 0, "high_freq" : -1 },
+ { "name" : "write_witsml",   "uid" :  4, "in_uid" :  1, "directory_out" : "vlf", "labels" : ["rms","vlf"],  "gather_uids" : [3], "data_style" : "vlf" }
+]
+}

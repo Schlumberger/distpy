@@ -1,0 +1,11 @@
+{
+ "ftp_site" : "seiswav.bgs.ac.uk",
+ "network" : "GB",
+ "site" : "GGERF",
+ "years" : ["2020"],
+ "days" : ["060"],
+ "components" : ["CNZ.D"],
+ "receivers" : ["04","03","02","01","00"],
+ "measured_depth" : [40,80,120,160,198]
+}
+	
