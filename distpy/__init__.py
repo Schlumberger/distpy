@@ -45,5 +45,6 @@ __status__ = 'Pre-alpha'
 # 1.15.0 Added the kmeans command
 # 1.15.1 Corrected the auto-generated documentation on the kmeans command
 # 1.15.2 Corrected setup.py so that all necessary libraries are installed
-__version__ = '1.15.2'
+# 1.16.0 Added the approximate very low frequency (VLF) calculation
+__version__ = '1.16.0'
 

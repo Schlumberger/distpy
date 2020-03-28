@@ -471,7 +471,11 @@ def SEGYingest(segyfilename, outdir, overwrite=True):
             print(datestring)
             print('time_basis_code:',str(stdHeader['time_basis_code']))
             datestamp = datetime.datetime.strptime(datestring,'%Y %j %H:%M:%S')
-            unixtime = int(datestamp.timestamp())
+            unixtime = 0
+            try:
+                unixtime = int(datestamp.timestamp())
+            except:
+                pass
             bDone = True
             nsecs = 0
             for mapid in range(0,nt,prf):

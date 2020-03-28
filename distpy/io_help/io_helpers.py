@@ -157,6 +157,12 @@ def command2md(command, lines):
 '''
 # Custom writer for FBE...
 def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_freq, prf, data_style='UNKNOWN', label_list=[]):
+    # handle the case of a transposed trace....
+    if (data.shape[0]==1):
+        data = numpy.transpose(data)
+        band00 = numpy.transpose(band00)
+        # simple axis replaces the actual axis - deferred better axis handling to a future version
+        xaxis = numpy.linspace(0, data.shape[0], data.shape[0],endpoint=False,dtype=numpy.double)
     curves = witsmlfbe.generic_curves(low_freq,high_freq,prf)
     if (len(label_list)>0):
         icurve=0

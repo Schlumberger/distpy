@@ -42,7 +42,7 @@ universal_arglist = {
     "type" :          {DEFAULT : "lowpass",DESC : "The type of a filter which can be lowpass, highpass, bandpass, or bandstop"},
     "padtype" :       {DEFAULT : "even",DESC : "The type of end-effect control on a filter, see scipy.signal.filtfilt"},
     "prf" :           {DEFAULT : 10000, DESC : "The pulse repetition frequency in Hz (one over the time sample rate)"},
-    "freq" :          {DEFAULT : 200.0, DESC : "A frequency in Hz"},
+    "freq" :          {DEFAULT : 200.0, DESC : "A frequency in Hz or a wavenumber in 1/m"},
     "filename" :      {DEFAULT : NONE,  DESC : "A filename for read or write operations"},
     "axis" :          {DEFAULT : -1,    DESC : "The axis to apply an operation to, typically in distpy axis=0 for depth and axis=1 for time"},
     "xsigma" :        {DEFAULT : 1.0,   DESC : "A standard deviation in the x-direction"},
@@ -50,7 +50,7 @@ universal_arglist = {
     "xorder" :        {DEFAULT : 5,     DESC : "In a 2D filter this is the order in the x-direction"},
     "torder" :        {DEFAULT : 5,     DESC : "In a 2D filter, this is the order in the t-direction"},
     "distance" :      {DEFAULT : 3,     DESC : "The number of samples in a median filter"},
-    "window_length" : {DEFAULT : 5,     DESC : "The length of a running mean window"},
+    "window_length" : {DEFAULT : 5,     DESC : "The length of a filter window in samples"},
     "n_clusters" :    {DEFAULT : 10,    DESC : "The number of clusters to use when classifying the data"},
     "offset" :        {DEFAULT : 0,     DESC : "An offset from the start of the data, in samples"},
     "xmin" :          {DEFAULT : None,  DESC : "A minimum value on the x-axis"},
@@ -239,6 +239,46 @@ class AbsCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_abs(self._previous.result())
+
+'''
+ ConjCommand : wrappers the numpy.conj() function
+'''
+class ConjCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the complex conjugate value of the input"
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.agnostic_conj(self._previous.result())
+
+'''
+ ApproxVlfCommand: weighted average of a trace, gives a reasonable approximation to Very Low Frequency response
+'''
+class ApproxVlfCommand(BasicCommand):
+    def __init__(self, command, jsonArgs):
+        super().__init__(command, jsonArgs)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="A weighted average focussed on the central trace, equivalent to a very low pass filter. The results approximate the very low frequency response in a robust way."
+        return docs
+
+    def isGPU(self):
+        return False
+
+
+    def execute(self):
+        super().execute()
+        self._result = extra_numpy.approx_vlf(self._previous.result())
+        
+
 '''
  KerasCommand : wrappers the extra_numpy.kera_model() function
 '''
@@ -421,6 +461,37 @@ class RealCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_real(self._previous.result())
+
+'''
+ AnalyticSignalCommand : wrappers the extra_numpy.agnostic_analytic_signal() function
+'''
+class AnalyticSignalCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._prf = jsonArgs.get('prf',10000)
+        self._freq = jsonArgs.get('freq',200.0)
+        self._axis = jsonArgs.get('axis',1)
+        self._N = jsonArgs.get('window_length',64)
+        self._prf = jsonArgs.get('prf',10000.0)
+        self._wavn = numpy.abs(jsonArgs['xaxis'][1]-jsonArgs['xaxis'][0])
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Estimate the analytic signal using a locally filtered maximum likelihood method"
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','window_length'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        fs = self._prf
+        axis = self._axis
+        if axis==1:
+            fs = self._wavn
+        fc = self._freq
+        window_length = self._N
+        self._result = extra_numpy.agnostic_analytic_signal(self._previous.result(),fc,fs,window_length=window_length, axis=axis)
 
 '''
  HashCommand : creates a 64-bit integer hash using extra_numpy.hash(), reducing the data from 2D to 1D
@@ -1096,7 +1167,9 @@ def KnownCommands(knownList):
     knownList['NONE']           = BasicCommand
     knownList['data']           = DataLoadCommand
     knownList['abs']            = AbsCommand
+    knownList['analytic_signal']= AnalyticSignalCommand
     knownList['argmax']         = ArgmaxCommand
+    knownList['approx_vlf']     = ApproxVlfCommand
     knownList['butter']         = ButterCommand
     knownList['clip']           = ClipCommand
     knownList['count_peaks']    = CountPeaksCommand

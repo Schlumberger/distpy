@@ -23,7 +23,6 @@ from scipy.signal import hilbert
 BOXSIZE=400
 GPU_CPU = agnostic.agnostic()
 
-
 # extra functions for image cleanup (i.e. introduced for plotting, but
 # all are 1 or 2D data signal processing so belong in here)
 # https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
@@ -92,6 +91,10 @@ def agnostic_argmax(x, axis=None):
     xp = GPU_CPU.get_numpy(x)
     return xp.argmax(x, axis=axis)
 
+def agnostic_conj(x):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.conj(x)
+
 def agnostic_diff(x, n=1, axis=-1):
     xp = GPU_CPU.get_numpy(x)
     return xp.diff(x,n=n,axis=axis)
@@ -127,7 +130,35 @@ def agnostic_zeros(x,size_tuple,dtype=numpy.double):
     return xp.zeros(size_tuple,dtype=dtype)
 
     
+'''
+  Extract the analytic signal for a give frequency within a
+  narrowband (MLE method)
 
+  It is assumed that the data input is fft'd
+'''
+def complex_estimator(xp, nx, fc, fs, MLE_length):
+    win_len = MLE_length
+    n = numpy.arange(0,win_len)
+    n = n-(0.5*win_len)
+    n = n/fs
+    win_hann = xp.hanning( win_len)
+    A_line = xp.zeros(nx, dtype=numpy.csingle)
+    A_line[0:win_len] = xp.exp( (0+1j) * (2 * numpy.pi * fc * n)) * win_hann
+    # This is not zero phase, so we undo the shift that the filter causes...
+    A_line = xp.roll(A_line, [-int(round(win_len/2))], axis=0)
+    # Estimator (2d ndarray)   
+    return A_line
+
+def agnostic_analytic_signal(x,fc,fs,window_length=64,axis=1):
+    xp = GPU_CPU.get_numpy(x)
+    nx = x.shape[axis]
+    est = complex_estimator(xp,nx,fc,fs,window_length)
+    est = agnostic_fft(est)
+    if axis==1:
+        return xp.multiply(x,xp.expand_dims(est, axis=1))
+    return xp.multiply(x,est)
+    
+    
 '''
 Configure the calculation for different hardware sizes.
 '''

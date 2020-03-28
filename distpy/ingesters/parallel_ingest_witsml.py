@@ -40,8 +40,8 @@ def readFBEController(dirin,dirout, repackage_size):
         if endIdx>=nt:
             endIdx=nt-1
         datafileset = datafiles[a:endIdx]
-        witsmlfbe.readFBE(datafileset,os.path.join(dirout,prefixes[a]))
-
+        witsmlfbe.readFBE(datafileset,dirout,prefixes[a])
+        
 def main(configOuterFile):
     # standard configuration information
     basedir,dirout,configFile,PARALLEL,NCPU,repackage_size, xaxisfile,taxisfile,prf = io_helpers.systemConfig(configOuterFile)

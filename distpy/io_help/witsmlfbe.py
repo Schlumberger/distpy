@@ -725,11 +725,10 @@ def averageFBE(datafiles, basedir, dirout, dirout_std):
         xidx=0
         recursive_elem_egest(root, stdOut, xidx)
         writeFBE(dirout_std,fname[:-4], root)
-        
 '''
  readFBE : read a directory of *.fbe files and turn them into a directory containing a depth axis, a time axis and a 2D array of values
            - a format that is much easier to work with in reprocessing and interpretation flows.
-'''
+
 def readFBE(datafiles,dirout):
     DEPTH = 'DEPTH'
     TIME = 'TIME'
@@ -802,6 +801,93 @@ def readFBE(datafiles,dirout):
         numpy.save(xaxisfilename, depth_axis)
     taxisfilename = os.path.join(dirout,'time.npy')
     numpy.save(taxisfilename, time_axis)
+'''       
+'''
+ readFBE : read a directory of *.fbe files and turn them into a directory containing a depth axis, a time axis and a 2D array of values
+           - a format that is much easier to work with in reprocessing and interpretation flows.
+
+           New readFBE to avoid dirswap and to make the results more compatible with distpy processing chains.
+'''
+def readFBE(datafiles,dirout,timestamp):
+    DEPTH = 'DEPTH'
+    TIME = 'TIME'
+    TMP = 'tmp'
+    
+    # The number of time samples
+    nt = len(datafiles)
+
+    
+    # First file gives us nx and the list of output files
+    filename = datafiles[0]
+    tree = ET.parse(filename)
+    root = tree.getroot()
+    list_of_files = []
+    depth_axis_values  =[]
+    time_axis_values = []
+    recursive_elem_counter(root, list_of_files, depth_axis_values)
+    nx = len(depth_axis_values)
+
+    # create memmap files - similar to the way we reprocess SGY to 1-second data chunks.
+    memmapList = []
+    tmpList = []
+    tmpdir = os.path.join(dirout,TMP)
+    if not os.path.exists(tmpdir):
+        os.makedirs(tmpdir)
+        
+    for fname in list_of_files:
+        if not fname==DEPTH:
+            filefolder = os.path.join(tmpdir,fname)
+            if not os.path.exists(filefolder):
+                os.makedirs(filefolder)
+            fileout = os.path.join(tmpdir, fname, timestamp)
+            memmapList.append(numpy.memmap(fileout, dtype=numpy.double, mode='w+', shape=(nx,nt)))
+            tmpList.append(fileout)
+    for mapped in memmapList:
+        mapped.flush()
+        
+    # loop and write...
+    idx = 0
+    for fname in datafiles:
+        tree = ET.parse(fname)
+        root = tree.getroot()
+        xidx=0
+        recursive_elem_ingest(root, memmapList, idx, xidx, time_axis_values)
+        idx = idx + 1
+
+    # create time and depth axis as arrays
+    time_axis = numpy.asarray(time_axis_values, dtype=numpy.double)
+    depth_axis = numpy.asarray(depth_axis_values, dtype=numpy.double)
+
+    for mapped in memmapList:
+        mapped.flush()
+
+    print("max values in memmaps")
+    for a in range(len(memmapList)):
+        print(numpy.max(memmapList[a]))
+        
+    print('Converting temporary files to permanent')
+    for a in range(len(memmapList)):
+        dir_final = os.path.join(dirout,list_of_files[a+1])
+        if not os.path.exists(dir_final):
+            os.makedirs(dir_final)
+        fileout = os.path.join(dirout,list_of_files[a+1],timestamp+'.npy')
+        print(fileout)
+        numpy.save(fileout, numpy.array(memmapList[a]))
+        del mapped
+        # override lazy behaviour...
+        mapped = None
+    memmapList = None
+    # remove temporary files...
+    for filename in tmpList:
+        os.remove(filename)
+    # Assumption that the fibre depth points do not change over the measurement period
+    for fname in list_of_files:
+        if not fname==DEPTH:
+            xaxisfilename = os.path.join(dirout,fname,'measured_depth.npy')
+            if not os.path.exists(xaxisfilename):
+                numpy.save(xaxisfilename, depth_axis)
+            taxisfilename = os.path.join(dirout,fname,'time.npy')
+            numpy.save(taxisfilename, time_axis)
 '''
 ####################################################################################################
 # Executable code...

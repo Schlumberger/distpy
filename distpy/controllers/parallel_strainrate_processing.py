@@ -40,7 +40,7 @@ def main(configOuterFile, extended_list=[]):
     for root, dirs, files in os.walk(basedir):
         for datafile in files:
             if not datafile=='measured_depth.npy':
-                if not datafile=='time_axis.npy':
+                if not datafile=='time.npy':
                     datafiles.append(os.path.join(root,datafile))
         # break here because we don't want subdirectories (SLB case)
         break
