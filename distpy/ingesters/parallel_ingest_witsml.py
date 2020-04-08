@@ -35,12 +35,14 @@ def readFBEController(dirin,dirout, repackage_size):
     nt=len(datafiles)
     if (repackage_size<1):
         repackage_size=nt
-    for a in range(0,nt,repackage_size):
-        endIdx = a+repackage_size
-        if endIdx>=nt:
-            endIdx=nt-1
-        datafileset = datafiles[a:endIdx]
-        witsmlfbe.readFBE(datafileset,dirout,prefixes[a])
+    # repackage size is now only zero if there are no fbe files found..
+    if (repackage_size>1):
+        for a in range(0,nt,repackage_size):
+            endIdx = a+repackage_size
+            if endIdx>=nt:
+                endIdx=nt-1
+            datafileset = datafiles[a:endIdx]
+            witsmlfbe.readFBE(datafileset,dirout,prefixes[a])
         
 def main(configOuterFile):
     # standard configuration information

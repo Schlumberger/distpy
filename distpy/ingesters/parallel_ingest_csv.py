@@ -25,7 +25,7 @@ def ingest1csv(fname, dirout, jsonArgs):
     fname=str(int(timestamp[0]))+'.npy'
     numpy.save(os.path.join(dirout,fname),data)
     numpy.save(os.path.join(dirout,'measured_depth.npy'),jsonArgs['xaxis'])
-    numpy.save(os.path.join(dirout,'time_axis.npy'),jsonArgs['taxis'])
+    numpy.save(os.path.join(dirout,'time.npy'),jsonArgs['taxis'])
     
 
 

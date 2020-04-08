@@ -47,5 +47,7 @@ __status__ = 'Pre-alpha'
 # 1.15.2 Corrected setup.py so that all necessary libraries are installed
 # 1.16.0 Added the approximate very low frequency (VLF) calculation
 # 1.16.1 Corrected the automatic documentation for the analytic signal command
-__version__ = '1.16.1'
+# 1.16.2 corrected the time.npy output file from the CSV ingester.
+# 1.17.0 linear transform and addition included to make custom filters easier to design
+__version__ = '1.17.0'
 

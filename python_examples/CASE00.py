@@ -9,13 +9,13 @@ import distpy.controllers.parallel_plots
 import os
 
 ### Windows example
-ARCHIVE_DRIVE = "D:\\Archive"
+ARCHIVE_LOCATION = "D:\\Archive"
 PROJECT_DRIVE = "C:\\NotBackedUp"
 ### Linux example
-ARCHIVE_DRIVE = "/archive/projects/"
+ARCHIVE_LOCATION = "/archive/projects/"
 PROJECT_DRIVE = "/scratch/username/"
 ### Azure example
-ARCHIVE_DRIVE = "/dbfs/mnt/segy/"
+ARCHIVE_LOCATION = "/dbfs/mnt/segy/"
 PROJECT_DRIVE = "/dbfs/tmp/segy/"
 
 

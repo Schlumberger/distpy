@@ -4,7 +4,24 @@
 
 import numpy
 import datetime
-from keras.models import load_model
+class nokeras_load_model(object):
+    def __init__(self):
+        pass
+
+    def load_model(data):
+        print("keras comomand used, but keras module not installed, a null operations is assumed.")
+        return data
+try:
+    from keras.models import load_model
+    class keras_load_model(nokeras_load_model):
+        def __init__(self):
+            pass
+        def load_model(self,data):
+            return load_model(data)
+except ImportError:
+    class keras_load_model(nokeras_load_model):
+        pass
+    
 from sklearn.cluster import KMeans
 
 import distpy.calc.agnostic as agnostic
@@ -588,11 +605,11 @@ def destripe(localData):
     freq = xp.linspace(0,1.0/(2*dt),xp.int(nt/2))
     frequency = xp.zeros((1,nt),dtype=xp.double)
     frequency[0,0:xp.int(nt/2)]=freq
-    frequency[0,xp.int(nt/2):]=xp.flipud(freq)
+    frequency[0,-xp.int(nt/2):]=xp.flipud(freq)
     wavn = xp.linspace(0,1.0/(2*dx),xp.int(nx/2))
     wavenumber = xp.zeros((nx,1),dtype=xp.double)
     wavenumber[0:xp.int(nx/2)]=xp.reshape(wavn,(xp.int(nx/2),1))
-    wavenumber[xp.int(nx/2):]=numpy.reshape(xp.flipud(wavn),(xp.int(nx/2),1))
+    wavenumber[-xp.int(nx/2):]=numpy.reshape(xp.flipud(wavn),(xp.int(nx/2),1))
     freqImage = xp.reshape(xp.tile(frequency,(nx,1)),(nx,nt))
     wavnImage = xp.reshape(xp.tile(wavenumber,(1,nt)),(nx,nt))
     #Rx = (freqImage*freqImage)/((freqImage*freqImage)+(wavnImage*wavnImage)+TOLERANCE)
@@ -646,14 +663,17 @@ def keras_model(data,kerasfile,Y=None,train=None):
     # NULL behaviour is to simply return the input
     if kerasfile is None:
         return data
-    model = load_model(kerasfile)
-    if train is not None:
-        epochs = train.get('epochs',150)
-        batch_size = train.get('batch_size',10)
-        model.fit(data,Y,epochs=epochs,batch_size=batch_size,verbose=0)
-        model.save(kerasfile)
-        model.evaluate(data,Y,verbose=0)
-    return model.predict(data)
+    kclass = keras_load_model()
+    model = kclass.load_model(kerasfile)
+    if model is not None:
+        if train is not None:
+            epochs = train.get('epochs',150)
+            batch_size = train.get('batch_size',10)
+            model.fit(data,Y,epochs=epochs,batch_size=batch_size,verbose=0)
+            model.save(kerasfile)
+            model.evaluate(data,Y,verbose=0)
+        return model.predict(data)
+    return data
 '''
  available_funcs : these are the functions for which the reduced_mem options are available.
 '''

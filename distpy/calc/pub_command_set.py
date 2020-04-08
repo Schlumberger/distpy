@@ -58,6 +58,8 @@ universal_arglist = {
     "tmin" :          {DEFAULT : None,  DESC : "A minimum value on the time-axis"},
     "tmax" :          {DEFAULT : None,  DESC : "A maximum value on the time-axis"},
     "commands" :      {DEFAULT : [None],DESC : "TODO"},
+    "m" :             {DEFAULT : 1.0,     DESC : "The slope of a linear transform (y = m*x + c)"},
+    "c" :             {DEFAULT : 0.0,     DESC : "The intercept of a linear transform (y = m*x + c)"},
     "data_style" :    {DEFAULT : NONE,  DESC : "A string identifier for the data inside the WITSML file"},
     "method" :        {DEFAULT : "lin_fit", DESC : "The method for curve fitting, see scipy.optimize.curve_fit"},
     "moment" :        {DEFAULT : 1,     DESC : "The order of central moment, see scipy.stats.moment"},
@@ -524,17 +526,21 @@ class ButterCommand(BasicCommand):
         self._ptype = jsonArgs.get('padtype','even')
         self._prf = jsonArgs.get('prf',10000)
         self._freq = jsonArgs.get('freq',200.0)
+        self._axis = jsonArgs.get('axis',1)
 
     def docs(self):
         docs={}
         docs['one_liner']="Setup a Butterworth filter using scipy.signal.butter() and apply it using scipy.signal.filtfilt()"
-        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['order','type','padtype','prf','freq'] }
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['order','type','padtype','prf','freq','axis'] }
         return docs
 
     def execute(self):
         Wn = self._freq/(self._prf*0.5)
+        if self._axis == 0:
+            dx = numpy.abs(self._args['xaxis'][1]-self._args['xaxis'][0])
+            Wn = self._freq/(dx*0.5)
         b, a = signal.butter(self._order,Wn,self._btype,output='ba')
-        self._result = signal.filtfilt(b,a,self._previous.result(),axis=1, padtype=self._ptype)
+        self._result = signal.filtfilt(b,a,self._previous.result(),axis=self._axis, padtype=self._ptype)
 
 '''
  ArgmaxCommand : Used to extract the first index of the maximum value in each
@@ -820,7 +826,7 @@ class MultiplyCommand(BasicCommand):
 
     def docs(self):
         docs={}
-        docs['one_liner']="Elementwise multiply, the output data-type will be the same as thaat of the data entering in the in_uid. This data is multiplied by data provided in the gather_uids"
+        docs['one_liner']="Elementwise multiply, the output data-type will be the same as that of the data entering in the in_uid. This data is multiplied by data provided in the gather_uids"
         #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
         return docs
 
@@ -830,6 +836,49 @@ class MultiplyCommand(BasicCommand):
     def execute(self):
         if self._prevstack[0]!=None:
             self._result = self._previous.result()*((self._prevstack[0]).result())
+'''
+ AddCommand : elementwise sum
+'''
+class AddCommand(BasicCommand):
+    def __init__(self,command,jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._prevstack = jsonArgs.get('commands',[None])
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Elementwise sum, the output data-type will be the same as that of the data entering in the in_uid."
+        #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        if self._prevstack[0]!=None:
+            self._result = self._previous.result()+((self._prevstack[0]).result())
+'''
+ LinearScalarCommand : y = mx+c
+'''
+class LinearTransformCommand(BasicCommand):
+    def __init__(self,command,jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._m = jsonArgs.get('m', 1.0)
+        self._c = jsonArgs.get('c', 0.0)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Provide two scalars m and c, linearly transform the data y = m*data + c"
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['m','c'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        m = self._m
+        c = self._c
+        self._result = m*self._previous.result()+c
+
 
 '''
  GatherCommand : Gather results together
@@ -1167,11 +1216,13 @@ def KnownCommands(knownList):
     knownList['NONE']           = BasicCommand
     knownList['data']           = DataLoadCommand
     knownList['abs']            = AbsCommand
+    knownList['add']            = AddCommand
     knownList['analytic_signal']= AnalyticSignalCommand
     knownList['argmax']         = ArgmaxCommand
     knownList['approx_vlf']     = ApproxVlfCommand
     knownList['butter']         = ButterCommand
     knownList['clip']           = ClipCommand
+    knownList['conj']           = ConjCommand
     knownList['count_peaks']    = CountPeaksCommand
     knownList['destripe']       = DestripeCommand
     knownList['diff']           = DiffCommand
@@ -1187,6 +1238,7 @@ def KnownCommands(knownList):
     knownList['keras']          = KerasCommand
     knownList['kmeans']         = KMeansCommand
     knownList['kurtosis']       = KurtosisCommand
+    knownList['lin_transform']  = LinearTransformCommand
     knownList['macro']          = MacroCommand
     knownList['median_filter']  = MedianFilterCommand
     knownList['mean']           = MeanCommand
