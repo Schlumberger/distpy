@@ -49,5 +49,6 @@ __status__ = 'Pre-alpha'
 # 1.16.1 Corrected the automatic documentation for the analytic signal command
 # 1.16.2 corrected the time.npy output file from the CSV ingester.
 # 1.17.0 linear transform and addition included to make custom filters easier to design
-__version__ = '1.17.0'
+# 1.18.0 Generalized the kmeans clustering 
+__version__ = '1.18.0'
 

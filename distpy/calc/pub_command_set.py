@@ -243,6 +243,47 @@ class AbsCommand(BasicCommand):
         self._result = extra_numpy.agnostic_abs(self._previous.result())
 
 '''
+ AngleCommand : wrappers the numpy.angle() function
+'''
+class AngleCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Take the angle of the complex input"
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.agnostic_angle(self._previous.result())
+
+'''
+ UnwrapCommand : unwraps using the numpy.unwrap() function
+'''
+class UnwrapCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',-1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Unwrap angles in the selected axis direction using numpy.unwrap"
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        docs['args']['axis']['default']=-1
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.agnostic_unwrap(self._previous.result(), axis=self._axis)
+
+
+
+'''
  ConjCommand : wrappers the numpy.conj() function
 '''
 class ConjCommand(BasicCommand):
@@ -311,6 +352,7 @@ class KMeansCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
+        self._prevstack = jsonArgs.get('commands',[None])
 
     def docs(self):
         docs={}
@@ -320,7 +362,23 @@ class KMeansCommand(BasicCommand):
 
     def execute(self):
         n_clusters = self._args.get('n_clusters',10)
-        self._result = extra_numpy.kmeans_clustering(self._previous.result(),n_clusters=n_clusters)
+        if self._prevstack[0] is not None:
+            shape_out = self._previous.result().shape
+            for a in range(len(self._prevstack)):
+                test_shape = self._prevstack[a].result().shape
+                if (test_shape[0]*test_shape[1])<(shape_out[0]*shape_out[1]):
+                    shape_out=test_shape
+            xrows = shape_out[0]*shape_out[1]
+            xcols = len(self._prevstack)+1
+            data_big = numpy.zeros((xrows,xcols))
+            for a in range(xcols-1):
+                data_big[:,a]=self._prevstack[a].result().flatten()[:xrows]
+            data_big[:,-1]=self._previous.result().flatten()[:xrows]
+            result = extra_numpy.kmeans_clustering(data_big,n_clusters=n_clusters)
+            self._result = numpy.reshape(result,shape_out)
+        else:
+            # Single input...
+            self._result = extra_numpy.kmeans_clustering(self._previous.result(),n_clusters=n_clusters)
 
 
 
@@ -521,6 +579,7 @@ class HashCommand(BasicCommand):
 class ButterCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
+        self._args = jsonArgs
         self._order = jsonArgs.get('order',5)
         self._btype = jsonArgs.get('type','lowpass')
         self._ptype = jsonArgs.get('padtype','even')
@@ -622,6 +681,32 @@ class SumCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_sum(self._previous.result(), axis=self._axis, keepdims=True)
+
+'''
+ RollCommand : rolls the data along the requested axis using extra_numpy.agnostic_roll
+'''
+class RollCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis  = jsonArgs.get('axis',1)
+        self._shift = jsonArgs.get('window_length',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Rolls the data along the specified axis, using numpy.roll()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','window_length'] }
+        docs['args']['axis']['default']=1
+        docs['args']['window_length']['default']=1
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.agnostic_roll(self._previous.result(), self._shift, axis=self._axis)
+
+
+
 
 
 '''
@@ -941,7 +1026,31 @@ class WienerCommand(BasicCommand):
 
     def execute(self):
         self._result = signal.wiener(self._previous.result(), [self._xdir, self._tdir], self._noisePower)
-        
+
+
+'''
+ WriteNPYCommand : writes out the current datablock to NPY format
+'''
+class WriteNPYCommand(BasicCommand):
+    def __init__(self, command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._dirname = jsonArgs.get('directory_out','NONE')
+        self._fname = jsonArgs.get('date_dir','NONE')
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Write the current state of the processed data to the npy format."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out'] }
+        return docs
+
+    def postcond(self):
+        return [directory_services.path_join(self._dirname,self._fname+'.npy')]
+
+    def execute(self):
+        super().execute()
+        dirname = self._dirname
+        if not dirname=='NONE':
+            io_helpers.numpy_out(dirname,self._fname,self._previous.result())
 
 '''
  WriteWITSMLCommand : writes the results to the WITSML/FBE format.
@@ -1216,6 +1325,7 @@ def KnownCommands(knownList):
     knownList['NONE']           = BasicCommand
     knownList['data']           = DataLoadCommand
     knownList['abs']            = AbsCommand
+    knownList['angle']          = AngleCommand
     knownList['add']            = AddCommand
     knownList['analytic_signal']= AnalyticSignalCommand
     knownList['argmax']         = ArgmaxCommand
@@ -1247,16 +1357,19 @@ def KnownCommands(knownList):
     knownList['peak_to_peak']   = Peak2PeakCommand
     knownList['rms_from_fft']   = RMSfromFFTCommand
     knownList['real']           = RealCommand
+    knownList['roll']           = RollCommand
     knownList['running_mean']   = RunningMeanCommand
     knownList['sum']            = SumCommand
     knownList['skewness']       = SkewnessCommand
     knownList['sta_lta']        = StaLtaCommand
     knownList['std_dev']        = StdDevCommand
     knownList['to_gpu']         = ToGPUCommand
+    knownList['unwrap']         = UnwrapCommand
     knownList['up_wave']        = UpCommand
     knownList['velocity_map']   = VelocityMapCommand
     knownList['velocity_mask']  = VelocityMaskCommand
     knownList['wiener']         = WienerCommand
+    knownList['write_npy']      = WriteNPYCommand
     knownList['write_witsml']   = WriteWITSMLCommand
     return knownList    
 

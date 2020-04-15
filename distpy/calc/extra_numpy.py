@@ -104,6 +104,10 @@ def agnostic_abs(x):
     xp = GPU_CPU.get_numpy(x)
     return xp.abs(x)
 
+def agnostic_angle(x):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.angle(x)
+
 def agnostic_argmax(x, axis=None):
     xp = GPU_CPU.get_numpy(x)
     return xp.argmax(x, axis=axis)
@@ -115,6 +119,15 @@ def agnostic_conj(x):
 def agnostic_diff(x, n=1, axis=-1):
     xp = GPU_CPU.get_numpy(x)
     return xp.diff(x,n=n,axis=axis)
+
+def agnostic_unwrap(x, axis=-1):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.unwrap(x,axis=axis)
+
+def agnostic_roll(x, shift, axis=None):
+    xp = GPU_CPU.get_numpy(x)
+    return xp.roll(x,shift,axis=axis)
+
 
 
 def agnostic_fft(x,axis=-1):
@@ -172,7 +185,7 @@ def agnostic_analytic_signal(x,fc,fs,window_length=64,axis=1):
     est = complex_estimator(xp,nx,fc,fs,window_length)
     est = agnostic_fft(est)
     if axis==1:
-        return xp.multiply(x,xp.expand_dims(est, axis=1))
+        return xp.multiply(x,xp.expand_dims(est, axis=0))
     return xp.multiply(x,est)
     
     

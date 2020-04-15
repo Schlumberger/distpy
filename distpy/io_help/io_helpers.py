@@ -216,7 +216,8 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     vmaxval = meanval + stdval
     print(vminval,vmaxval)
     plt.imshow(data, cmap=cscale, aspect='auto', vmin=vminval, vmax=vmaxval, extent=[tscale[0],tscale[1],xscale[1],xscale[0]])
-    plt.title(fname, fontsize=10)
+    title_string = dtime.fromtimestamp(int(fname)).strftime('%Y-%m-%d %H:%M:%S')
+    plt.title(title_string + ' (' + fname + ')', fontsize=10)
     plt.xlabel('time (s)')
     plt.ylabel('measured depth (m)')
     fnameout = os.path.join(stem_name,fname+'.' + plt_format)
@@ -224,6 +225,12 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     plt.savefig(os.path.join(stem_name,fname+'.'+plt_format),format=plt_format)
     plt.close()
 
+'''
+ numpy_out - write the current data block to file.
+'''
+def numpy_out(stem_name,fname, data):
+    numpy.save(os.path.join(stem_name,fname+'.npy'),data)
+    
 
 '''
  write_plot : under development, this can replace plt.savefig() for compatibility with google cloud blob storage.
