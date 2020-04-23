@@ -17,6 +17,11 @@ def build_command_list(commandJson, data=None, dirout="scratch",
                        extended_list=[]):
     if xaxis is None:
         xaxis=numpy.arange(nx)
+    taxis = commandJson.get('taxis',None)
+    if taxis is None:
+        taxis=numpy.arange(nt)
+    # A convenience for Jupyter Notebooks - when developing workflows we sometimes want to inline plot views
+    inline_plots = commandJson.get('inline_plots',0)
     # initialize the command list that will eventually be executed.
     # This first one is anomalous - need a good way to initiate the top of the tree...
     # possibly this is a root...
@@ -44,7 +49,9 @@ def build_command_list(commandJson, data=None, dirout="scratch",
         command['nx']=nx
         command['prf']=prf
         command['xaxis']=xaxis
+        command['taxis']=taxis
         command['nt']=nt
+        command['inline_plots']=inline_plots
         # prf/nt is the rescale factor
         command['f_rescale']=float(nt)/float(prf)
         index = command.get('band00',-1)

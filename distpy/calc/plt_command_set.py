@@ -38,8 +38,13 @@ class ThumbnailCommand(BasicCommand):
         else:
             self._xaxis = [0,1]
             self._taxis = [0,1]
+        if "taxis" in jsonArgs:
+            self._taxis = [jsonArgs['taxis'][0],jsonArgs['taxis'][-1]]
         self._format = jsonArgs.get('format','png')
         self._std_val_mult = jsonArgs.get('clip_level',1.0)
+        self._jsonArgs = jsonArgs
+        
+            
 
     def docs(self):
         docs={}
@@ -54,7 +59,9 @@ class ThumbnailCommand(BasicCommand):
         super().execute()
         dirname = self._dirname
         if not dirname=='NONE':
-            io_helpers.thumbnail_plot(dirname,self._fname,self._previous.result(), xscale=self._xaxis,tscale=self._taxis, plt_format=self._format, std_val_mult=self._std_val_mult)
+            io_helpers.thumbnail_plot(dirname,self._fname,self._previous.result(),
+                                      xscale=self._xaxis,tscale=self._taxis,
+                                      plt_format=self._format, std_val_mult=self._std_val_mult, jsonArgs=self._jsonArgs)
 
 '''
  BasicPlotCommand - in particular extends BasicCommand with annotations() and write_plot()

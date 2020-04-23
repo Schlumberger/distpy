@@ -487,7 +487,7 @@ def las2fbe(filename):
 '''
  witsml_fbe : Given the information, write the wistml.
 '''
-def witsml_fbe(datestring, xaxis, curves, curveData, data_style='UNKNOWN'):
+def witsml_fbe(datestring, xaxis, curves, curveData, data_style='UNKNOWN', depth_unit='m'):
     set_unknown_constants(data_style)
     #print('xaxis.shape',xaxis.shape)
     root = ET.Element(ROOT_TAG,ROOT_ATTR)
@@ -554,7 +554,7 @@ def witsml_fbe(datestring, xaxis, curves, curveData, data_style='UNKNOWN'):
     unit = ET.SubElement(logCurveInfo, UNIT_TAG, UNIT_ATTR)
     curveDescription = ET.SubElement(logCurveInfo,CURVEDESCRIPTION_TAG, CURVEDESCRIPTION_ATTR)
     mnemonic.text = 'DEPTH'
-    unit.text = 'm'
+    unit.text = depth_unit
     curveDescription.text = 'depth along the fiber'
     indexType = ET.SubElement(blockInfo, INDEXTYPE_TAG, INDEXTYPE_ATTR)
     indexType.text = 'length'

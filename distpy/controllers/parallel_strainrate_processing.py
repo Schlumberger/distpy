@@ -27,14 +27,24 @@ def main(configOuterFile, extended_list=[]):
     except FileNotFoundError:
         print('No x-axis specified')
 
+    taxis = None
+    try:
+        taxis = numpy.load(taxisfile)
+    except FileNotFoundError:
+        taxis = None
+    
+
     configFile = io_helpers.json_io(jsonConfig,1)
     configData = configFile.read()
     # Note this copy - we don't (from a user point-of-view)
     # want to be doing system configuration in the strainrate2summary.json,
     # but we do from an internal point-of-view
     configData['BOX_SIZE']=BOX_SIZE
-    print(configData)
-
+    configData['taxis'] = taxis
+    verbose = configData.get('verbose',0)
+    if verbose==1:
+        print(configData)
+ 
     #scan for directories
     datafiles=[]
     for root, dirs, files in os.walk(basedir):

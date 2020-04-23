@@ -48,7 +48,7 @@ def main(configOuterFile):
         # parallel does not work in Techlog...
         for fname in csv_files:
             print(fname)
-            ingest1csv(fname,dirout, configData)
+            io_helpers.csv2fbe(fname,dirout, configData)
     else:
         manager = multiprocessing.Manager()
         q = manager.Queue()
@@ -58,7 +58,7 @@ def main(configOuterFile):
 
         jobs = []
         for fname in csv_files:
-            job = pool.apply_async(ingest1csv,[fname,dirout, configData])
+            job = pool.apply_async(io_helpers.csv2fbe,[fname,dirout, configData])
             print(job)
             jobs.append(job)
 

@@ -30,7 +30,7 @@ def CommandFactory(commandList, commandJson, extended_list=[]):
     
     name = commandJson.get('name','NONE')
     plot_type = commandJson.get('plot_type','NONE')
-    print(name)
+    #print(name)
     # multiple entries for the previous command
     # to support the n-to-1 paths
     previous = commandJson.get('in_uid',-1)

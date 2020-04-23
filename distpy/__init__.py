@@ -49,6 +49,8 @@ __status__ = 'Pre-alpha'
 # 1.16.1 Corrected the automatic documentation for the analytic signal command
 # 1.16.2 corrected the time.npy output file from the CSV ingester.
 # 1.17.0 linear transform and addition included to make custom filters easier to design
-# 1.18.0 Generalized the kmeans clustering 
-__version__ = '1.18.0'
+# 1.18.0 Generalized the kmeans clustering
+# 1.19.0 CSV ingestion to WITSML
+# 1.20.0 CSV ingestion from DTS-style (depth as rows, time as columns)
+__version__ = '1.20.0'
 

@@ -12,8 +12,12 @@ try:
 except:
     import distpy.io_help.witsmlfbe as witsmlfbe
 import os
+import itertools
 import matplotlib.pyplot as plt
 import matplotlib.colors
+import matplotlib.dates as mdates
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 '''
  Automatic documentation support in latex and dot (graphviz)
@@ -156,7 +160,7 @@ def command2md(command, lines):
                 WITSML FBE format. This is compatible with Techlog.
 '''
 # Custom writer for FBE...
-def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_freq, prf, data_style='UNKNOWN', label_list=[]):
+def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_freq, prf, data_style='UNKNOWN', label_list=[], unit_list=[]):
     # handle the case of a transposed trace....
     if (data.shape[0]==1):
         data = numpy.transpose(data)
@@ -169,6 +173,11 @@ def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_f
         for label in label_list:
             curves[icurve]['mnemonic']=label
             curves[icurve]['description']=label
+            icurve+=1
+    if (len(unit_list)>0):
+        icurve=0
+        for unit in unit_list:
+            curves[icurve]['unit']=unit
             icurve+=1
 
     dataOutsize = len(low_freq);
@@ -193,21 +202,151 @@ def write2witsml(dirout,fileout,datestring,xaxis, band00, data, low_freq, high_f
     witsmlfbe.writeFBE(dirout,fileout,root)
 
 '''
+ csv2fbe - handles a basic CSV input, converting to WITSML FBE
+
+ The CSV must be interpretable by pandas into a dataframe
+'''
+def csv2fbe(filein, stem, configJson):
+    # Sometimes data comes in the DTS-style (depth as rows, time as columns), so we catch that and pass it on
+    time_row = configJson.get('time_row',-1)
+    if time_row>-1:
+        return csv2dts(filein, stem, configJson)
+    
+    # output directory name
+    head_tail = os.path.split(filein)
+    # Assumption: original suffix is .csv or other 3 letter suffix.
+    stage = (head_tail[1])[:-4]
+    dirout = os.path.join(stem,stage)
+    if not os.path.exists(dirout):
+        os.makedirs(dirout)
+    print('writing to '+dirout)
+
+    # recover local variables from the config
+    TIME_FORMAT = configJson.get('time_format','%Y-%m-%d %H:%M:%S')
+    csv_labels = configJson.get('csv_labels',[])
+    curves = configJson.get('curves',[])
+    if not (len(csv_labels)==len(curves)):
+        print('Different number of csv_labels to curves in the output file, please check the config.')
+        return
+    if (len(csv_labels)==0) or (len(curves)==0):
+        print('Either no csv_labels or curves found, please check the config.')
+        return
+    depth_unit = configJson.get('depth_unit','m')
+    data_style = configJson.get('data_style','UNKNOWN')
+
+    # Read the CSV and sort by time-stamps
+    df = pandas.read_csv(filein)
+    uniquevals = numpy.unique(df[configJson['time_label']].values)
+    
+    
+    for id in uniquevals:
+        # extract all the data at the timestamp and sort by depth ready for output
+        newdf = df[df[configJson['time_label']] == id]
+        newdf = newdf.sort_values(by=[configJson['depth_label']])
+        
+        xaxis = numpy.array(newdf[configJson['depth_label']].tolist())
+        
+        timeval_curr = dtime.strptime(id,TIME_FORMAT)
+        fileout = str(int(timeval_curr.timestamp()))
+        datestring = dtime.fromtimestamp(int(fileout)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+        # Convert the data to numpy for writing
+        data = numpy.zeros((xaxis.shape[0],len(csv_labels)))
+        for a in range(len(csv_labels)):
+            data[:,a]=numpy.array(newdf[csv_labels[a]].tolist())
+            
+        root = witsmlfbe.witsml_fbe(datestring,xaxis, curves, data, data_style=data_style, depth_unit=depth_unit)
+        # The datestring has characters that we do not want in a filename...
+        # so we remo
+        witsmlfbe.writeFBE(dirout,fileout,root)
+'''
+ csv2dts - handles gridded DTS data with rows of depth and
+           columns that are timesteamps
+
+ The CSV must be interpretable by pandas into a dataframe
+'''
+def csv2dts(filein, stem, configJson):
+    # output directory name
+    output_format = configJson.get('output_format','witsml')
+    head_tail = os.path.split(filein)
+    # Assumption: original suffix is .csv or other 3 letter suffix.
+    stage = (head_tail[1])[:-4]
+    dirout = os.path.join(stem,stage)
+    if not os.path.exists(dirout):
+        os.makedirs(dirout)
+    print('writing to '+dirout)
+
+    # recover local variables from the config
+    TIME_FORMAT = configJson.get('time_format','%Y-%m-%d %H:%M:%S')
+    # time_row must exist or we wouldn't assume this data format
+    time_row = configJson['time_row']
+    first_data = configJson.get('first_data',1)
+    
+    
+    curves = configJson.get('curves',[ { "mnemonic" : "T", "unit" : "F", "description" : "DTS temperature in Fahrenheit" } ])
+    depth_unit = configJson.get('depth_unit','m')
+    data_style = configJson.get('data_style','UNKNOWN')
+
+    skiprows = []
+    for a in range(first_data):
+        if not a==time_row:
+            skiprows.append(a)
+
+    # Read the CSV
+    df = pandas.read_csv(filein,header=time_row,skiprows=skiprows)
+
+    if output_format == 'witsml':
+        firstTime=True
+        for column in df:
+            if firstTime == True:
+                xaxis = numpy.array(df[column].tolist())
+            else:
+                timeval = dtime.strptime(column,TIME_FORMAT)
+                fileout = str(int(timeval.timestamp()))
+                datestring = dtime.fromtimestamp(int(fileout)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+                data = numpy.array(df[column].tolist())
+                root = witsmlfbe.witsml_fbe(datestring,xaxis, curves, data, data_style=data_style, depth_unit=depth_unit)
+                # The datestring has characters that we do not want in a filename...
+                # so we remo
+                witsmlfbe.writeFBE(dirout,fileout,root)
+            firstTime=False
+    else:
+        xaxis = numpy.squeeze(numpy.array(df.values[:,0]))
+        cols = list(df.columns.values)
+        taxis_dates = numpy.array(list(map(dtime.strptime, cols[1:], itertools.repeat(TIME_FORMAT,len(cols[1:])))))
+        taxis = numpy.array([ts.timestamp() for ts in taxis_dates])
+        data = df.values[:,1:]
+        xaxisfilename = os.path.join(dirout,'measured_depth.npy')
+        numpy.save(xaxisfilename, xaxis)
+        taxisfilename = os.path.join(dirout,'time.npy')
+        numpy.save(taxisfilename, taxis)
+        datafilename = os.path.join(dirout,str(int(taxis[0]))+'.npy')
+        numpy.save(datafilename, data)
+
+'''
  Write a thumbnail plot using matplotlib
 '''
-def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_format='png', std_val_mult=1.0):
+def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_format='png',
+                   std_val_mult=1.0, jsonArgs={}):
+    cmap=jsonArgs.get('cmap','viridis')
+    axes=jsonArgs.get('axes',['depth (m)','time (s)'])
+    xaxis=jsonArgs.get('xaxis',None)
+    taxis=jsonArgs.get('taxis',None)
+    invert_depth=jsonArgs.get('invert_depth',0)
+    figure_size = jsonArgs.get('figure_size',(8,6))
+    dots_per_inch = jsonArgs.get('dpi',300)
+    plot_style = jsonArgs.get('plot_style','imshow')
+    NLEVELS=30
     plt.figure()
+    print('xscale',xscale)
     nx=data.shape[0]
     nt=data.shape[1]
-    if xscale[0]<0:
+    if xscale[0]==xscale[-1]:
         xscale=[0,nx]
-    if tscale[0]<0:
+    if tscale[0]==tscale[-1]:
         tscale=[0,nt]
-    # double ended fibre...special case
-    if xscale[0]==xscale[1]:
-        xscale=[0,nx]
         
-    cscale='magma'
+    cscale=cmap
     #despiked = despike(data,3)
     meanval = numpy.mean(data)
     stdval = numpy.std(data)
@@ -215,15 +354,53 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     vminval = meanval - stdval
     vmaxval = meanval + stdval
     print(vminval,vmaxval)
-    plt.imshow(data, cmap=cscale, aspect='auto', vmin=vminval, vmax=vmaxval, extent=[tscale[0],tscale[1],xscale[1],xscale[0]])
+    plt.figure(figsize=figure_size, dpi=dots_per_inch)
+    fig, ax = plt.subplots()
+    t_lims = tscale
+    if tscale[0]>1e+7:
+        # https://stackoverflow.com/questions/23139595/dates-in-the-xaxis-for-a-matplotlib-plot-with-imshow
+        t_lims = list(map(dtime.fromtimestamp, [int(tscale[0]), int(tscale[1])]))
+        t_lims = mdates.date2num(t_lims)
+
+    taxis2= list(map(dtime.fromtimestamp, taxis.tolist()))
+    taxis2= mdates.date2num(taxis2)
+
+    if plot_style=='imshow':
+        img = plt.imshow(data, cmap=cscale, aspect='auto', vmin=vminval, vmax=vmaxval, extent=[t_lims[0],t_lims[1],xscale[1],xscale[0]])
+        cbar = fig.colorbar(img)
+    if plot_style=='contourf':
+        # create mesh to plot
+        xv, yv = numpy.meshgrid(taxis2[:], xaxis[:])
+        img = plt.contourf(xv,yv,data, NLEVELS,cmap=cscale)  # colormap,
+        cbar = fig.colorbar(img)
+    if tscale[0]>1e+7:
+        # we have dates... so use dates
+        # https://stackoverflow.com/questions/23139595/dates-in-the-xaxis-for-a-matplotlib-plot-with-imshow
+        ax.set_xlim(t_lims[0],t_lims[1])
+        ax.xaxis_date()
+        date_format = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+        ax.xaxis.set_major_formatter(date_format)
+        # set the dates to diagonal so they fit better
+        fig.autofmt_xdate()
     title_string = dtime.fromtimestamp(int(fname)).strftime('%Y-%m-%d %H:%M:%S')
     plt.title(title_string + ' (' + fname + ')', fontsize=10)
-    plt.xlabel('time (s)')
-    plt.ylabel('measured depth (m)')
+    plt.xlabel(axes[1])
+    plt.ylabel(axes[0])
+    if invert_depth==1:
+        plt.gca().invert_yaxis() # invert depth axis
+    plt.rc('xtick',labelsize=15)
+    plt.rc('ytick',labelsize=15)
+    plt.tight_layout()
+
+    
     fnameout = os.path.join(stem_name,fname+'.' + plt_format)
     print(fnameout)
     plt.savefig(os.path.join(stem_name,fname+'.'+plt_format),format=plt_format)
-    plt.close()
+    inline_plots = jsonArgs.get('inline_plots',0)
+    if inline_plots==1:
+        plt.show()
+    else:
+        plt.close()
 
 '''
  numpy_out - write the current data block to file.

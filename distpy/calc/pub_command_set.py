@@ -34,6 +34,7 @@ universal_arglist = {
     "taxis" :         {DEFAULT : None, DESC : "A numpy vector of times associated with columns of data"},
     "directory_in" :  {DEFAULT : NONE, DESC : "The subdirectory from which to read data"},
     "directory_out" : {DEFAULT : NONE, DESC : "The subdirectory where results will be written"},
+    "doulbe_ended"  : {DEFAULT : -1,   DESC : "For handling double-ended fibre [-1=single-ended, 0=start-of-fibre half, 1=end-of-fibre half"},
     "command_list" :  {                DESC : "A list of sub-commands collected in a single macro"},
     "train" :         {                DESC : "A dictionary containing training parameters for keras, e.g. { 'epochs' : 150, 'batch_size' : 10 }"},
     "func" :          {                DESC : "Either rms_from_fft or te_from_fft"}, 
@@ -779,43 +780,58 @@ class CurveFitCommand(BasicCommand):
 class ClipCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
+        self._dirname = jsonArgs.get('directory_out','NONE')
         self._xaxis = jsonArgs.get('xaxis',None)
         self._taxis = jsonArgs.get('taxis',None)            
         self._xmin = jsonArgs.get('xmin',numpy.min(self._xaxis))
         self._xmax = jsonArgs.get('xmax',numpy.max(self._xaxis))
         self._tmin = jsonArgs.get('tmin',numpy.min(self._taxis))
         self._tmax = jsonArgs.get('tmax',numpy.max(self._taxis))
+        self._double_ended = jsonArgs.get('double_ended',-1)
+        self._fname = str(int(self._tmin))
 
     def docs(self):
         docs={}
-        docs['one_liner']="Clip the data so that all subsequent operations operate on a small window."
-        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xaxis','taxis','xmin','xmax','tmin','tmax'] }
+        docs['one_liner']="Clip the data so that all subsequent operations operate on a small window. If directory_out is specified the new axes will also be created in the storage directory"
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xaxis','taxis','xmin','xmax','tmin','tmax','directory_out','double_ended'] }
         return docs
 
     def isGPU(self):
         return True
 
+    def postcond(self):
+        return [directory_services.path_join(self._dirname,self._fname+'.npy')]
+
     def execute(self):
-        ixmin = 0
-        ixmax = 0
+        data = self._previous.result()
+        xend = int(self._xaxis.shape[0]*0.5)
+        print(xend)
+        if self._double_ended==0:
+            self._xaxis = self._xaxis[:xend]
+            data = data[:xend,:]
+        if self._double_ended==1:
+            self._xaxis = self._xaxis[xend:]
+            data = data[xend:,:]
+            self._xaxis = self._xaxis[::-1]
+            data = data[::-1,:]
+        ixmin = (numpy.abs(self._xaxis-self._xmin)).argmin()
+        ixmax = (numpy.abs(self._xaxis-self._xmax)).argmin()
         itmin = 0
         itmax = 0
-        for x in self._xaxis:
-            if self._xmin>x:
-                ixmin+=1
-            if self._xmax>x:
-                ixmax+=1
         if self._taxis is not None:
-            for t in self._taxis:
-                if self._tmin>t:
-                    itmin+=1
-                if self._tmax>t:
-                    itmax+=1
+            itmin = (numpy.abs(self._taxis-self._tmin)).argmin()
+            itmax = (numpy.abs(self._taxis-self._tmax)).argmin()
         else:
             itmin=0
-            itmax=self._previous.result().shape[1]
-        self._result = (self._previous.result())[ixmin:ixmax,itmin:itmax]
-
+            itmax=data.shape[1]
+        print('XMIN',self._xmin,self._xaxis[ixmin], ixmin)
+        print('XMAX',self._xmax,self._xaxis[ixmax], ixmax)
+        self._result = (data)[ixmin:ixmax,itmin:itmax]
+        dirname = self._dirname
+        if not dirname=='NONE':
+            io_helpers.numpy_out(dirname,self._fname,self._result)
+            io_helpers.numpy_out(dirname,'measured_depth',self._xaxis[ixmin:ixmax])
+            io_helpers.numpy_out(dirname,'time',self._taxis[itmin:itmax])
 '''
  DiffCommand : numerical differencing with a window_length offset
 '''
@@ -1025,6 +1041,7 @@ class WienerCommand(BasicCommand):
 
 
     def execute(self):
+        print('wiener ['+str(self._xdir) + ', ' + str(self._tdir) + ']')
         self._result = signal.wiener(self._previous.result(), [self._xdir, self._tdir], self._noisePower)
 
 
@@ -1068,7 +1085,7 @@ class WriteWITSMLCommand(BasicCommand):
         self._lowf = jsonArgs.get('low_freq',[0])
         self._highf = jsonArgs.get('high_freq',[1])
         self._labellist = jsonArgs.get('labels',[])
-        print(jsonArgs)
+        #print(jsonArgs)
 
     def postcond(self):
         return [directory_services.path_join(self._outdir,self._datedir+'.fbe')]
