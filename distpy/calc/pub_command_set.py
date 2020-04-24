@@ -30,11 +30,14 @@ DEFAULT = "default"
 DESC = "description"
 universal_arglist = {
     "args" :          {DEFAULT : None, DESC : "Arguments a passed through to the underlying math library"},
+    "coeffs" :        {DEFAULT : None, DESC : "Filter coefficients"},
     "xaxis" :         {DEFAULT : None, DESC : "A numpy vector of distances along the fibre"},
     "taxis" :         {DEFAULT : None, DESC : "A numpy vector of times associated with columns of data"},
     "directory_in" :  {DEFAULT : NONE, DESC : "The subdirectory from which to read data"},
     "directory_out" : {DEFAULT : NONE, DESC : "The subdirectory where results will be written"},
-    "doulbe_ended"  : {DEFAULT : -1,   DESC : "For handling double-ended fibre [-1=single-ended, 0=start-of-fibre half, 1=end-of-fibre half"},
+    "direction"     : {DEFAULT : ">", DESC : "The direction for applying the threshold, > or <"},
+    "double_ended"  : {DEFAULT : -1,   DESC : "For handling double-ended fibre [-1=single-ended, 0=start-of-fibre half, 1=end-of-fibre half"},
+    "edge_order"    : {DEFAULT :  1,   DESC : "Gradient is calculatd using N-th order accurate differences at the boundaries"},
     "command_list" :  {                DESC : "A list of sub-commands collected in a single macro"},
     "train" :         {                DESC : "A dictionary containing training parameters for keras, e.g. { 'epochs' : 150, 'batch_size' : 10 }"},
     "func" :          {                DESC : "Either rms_from_fft or te_from_fft"}, 
@@ -63,6 +66,7 @@ universal_arglist = {
     "c" :             {DEFAULT : 0.0,     DESC : "The intercept of a linear transform (y = m*x + c)"},
     "data_style" :    {DEFAULT : NONE,  DESC : "A string identifier for the data inside the WITSML file"},
     "method" :        {DEFAULT : "lin_fit", DESC : "The method for curve fitting, see scipy.optimize.curve_fit"},
+    "mode" :          {DEFAULT : "constant", DESC : "Filter edge handling, see the scipy.ndimage documentation."},
     "moment" :        {DEFAULT : 1,     DESC : "The order of central moment, see scipy.stats.moment"},
     "max_velocity":   {DEFAULT : 1600,  DESC : "The maximum phase velocity"},
     "min_velocity":   {DEFAULT : 1400,  DESC : "The minimum phase velocity"},
@@ -260,6 +264,43 @@ class AngleCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_angle(self._previous.result())
+'''
+ RescaleCommand : rescales the data from 0 to 1
+'''
+class RescaleCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Rescale the data from 0 to 1"
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.agnostic_rescale(self._previous.result())
+'''
+ SoftThresholdCommand : applies a threshold greater or less
+'''
+class SoftThresholdCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._direction = jsonArgs.get('direction','>')
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Applies a soft threshold."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['direction'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.soft_threshold(self._previous.result(),direction=self._direction)
+
 
 '''
  UnwrapCommand : unwraps using the numpy.unwrap() function
@@ -634,6 +675,7 @@ class GaussianCommand(BasicCommand):
         self._tdir = jsonArgs.get('tsigma',1.0)
         self._xorder = jsonArgs.get('xorder',5)
         self._torder = jsonArgs.get('torder',5)
+        self._mode = jsonArgs.get('mode', 'constant')
 
     def docs(self):
         docs={}
@@ -642,7 +684,65 @@ class GaussianCommand(BasicCommand):
         return docs
 
     def execute(self):
-        self._result = ndimage.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode='constant')
+        self._result = ndimage.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode=elf._mode)
+
+'''
+ SobelCommand : Applies a Sobel edge detection filter using signal.ndarray.sobel()
+'''
+class SobelCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',-1)
+        self._mode = jsonArgs.get('mode','constant')
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Applies a Sobel edge detection filter using signal.ndarray.sobel()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','mode'] }
+        return docs
+
+    def execute(self):
+        self._result = ndimage.sobel(self._previous.result(),axis=self._axis, mode=self._mode)
+
+'''
+ ConvolveCommand : Applies the supplied convolution filter
+'''
+class ConvolveCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._coeffs = jsonArgs.get('coeffs',[[1,0,-1],[2,0,-2],[1,0,-1]])
+        self._mode = jsonArgs.get('mode','constant')
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Convolves the supplied filter with the data."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['coeffs','mode'] }
+        docs['args']['coeffs']['default'] = [[1,0,-1],[2,0,-2],[1,0,-1]] 
+        return docs
+
+    def execute(self):
+        self._result = ndimage.convolve(self._previous.result(),self._coeffs, mode=self._mode)
+
+'''
+ CorrelateCommand : Applies the supplied correlation filter
+'''
+class CorrelateCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._coeffs = jsonArgs.get('coeffs',[[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1]])
+        self._mode = jsonArgs.get('mode','constant')
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Correlates the supplied filter with the data."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['coeffs','mode'] }
+        docs['args']['coeffs']['default'] = [[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1]]
+        return docs
+
+    def execute(self):
+        self._result = ndimage.correlate(self._previous.result(),self._coeffs, mode=self._mode)
+
+
 
 '''
   MedianFilterCommand : applies a 2D square median filter using ndimage.median_filter()
@@ -853,6 +953,42 @@ class DiffCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_diff(self._previous.result(),n=self._n, axis=self._axis)
+        # boundary condition
+        if self._axis==1:
+            self._result[:,-1]=self._result[:,-2]
+        if self._axis==0:
+            self._result[-1,:]=self._result[-2,:]
+
+'''
+ GradientCommand : numerical central differencing
+'''
+class GradientCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._xaxis = jsonArgs['xaxis']
+        self._taxis = jsonArgs['taxis']
+        self._edge_order = jsonArgs.get('edge_order',1)
+        self._axis = jsonArgs.get('axis',None)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Numercal gradient of the data via central differencing."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['edge_order','axis'] }
+        return docs
+
+    def isGPU(self):
+        return False
+
+    def execute(self):
+        if self._axis is not None:
+            if self._axis==1:
+                self._result = numpy.gradient(self._previous.result(),self._taxis,edge_order=self._edge_order, axis=1)
+            else:
+                self._result = numpy.gradient(self._previous.result(),self._xaxis,edge_order=self._edge_order, axis=0)
+        else:
+            self._result = numpy.gradient(self._previous.result(),[self._xaxis,self._taxis],edge_order=self._edge_order)
+
+                
 
 '''
  DownsampleCommand : index-based downsampling. Note there is no filtering, so for anti-alias
@@ -1350,6 +1486,8 @@ def KnownCommands(knownList):
     knownList['butter']         = ButterCommand
     knownList['clip']           = ClipCommand
     knownList['conj']           = ConjCommand
+    knownList['convolve']       = ConvolveCommand
+    knownList['correlate']      = CorrelateCommand
     knownList['count_peaks']    = CountPeaksCommand
     knownList['destripe']       = DestripeCommand
     knownList['diff']           = DiffCommand
@@ -1360,6 +1498,7 @@ def KnownCommands(knownList):
     knownList['gather']         = GatherCommand
     knownList['gaussian']       = GaussianCommand
     knownList['geometric_mean'] = GeometricMeanCommand
+    knownList['gradient']       = GradientCommand
     knownList['harmonic_mean']  = HarmonicMeanCommand
     knownList['ifft']           = IFFTCommand
     knownList['keras']          = KerasCommand
@@ -1374,8 +1513,11 @@ def KnownCommands(knownList):
     knownList['peak_to_peak']   = Peak2PeakCommand
     knownList['rms_from_fft']   = RMSfromFFTCommand
     knownList['real']           = RealCommand
+    knownList['rescale']        = RescaleCommand
     knownList['roll']           = RollCommand
     knownList['running_mean']   = RunningMeanCommand
+    knownList['sobel']          = SobelCommand
+    knownList['soft_threshold'] = SoftThresholdCommand
     knownList['sum']            = SumCommand
     knownList['skewness']       = SkewnessCommand
     knownList['sta_lta']        = StaLtaCommand

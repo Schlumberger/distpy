@@ -30,6 +30,7 @@ from distpy.calc.pub_command_set import universal_arglist
 class ThumbnailCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
+        self._prevstack = jsonArgs.get('commands',[None])
         self._dirname = jsonArgs.get('directory_out','NONE')
         self._fname = jsonArgs.get('date_dir','NONE')
         if "xaxis" in jsonArgs:
@@ -44,7 +45,6 @@ class ThumbnailCommand(BasicCommand):
         self._std_val_mult = jsonArgs.get('clip_level',1.0)
         self._jsonArgs = jsonArgs
         
-            
 
     def docs(self):
         docs={}
@@ -57,10 +57,16 @@ class ThumbnailCommand(BasicCommand):
 
     def execute(self):
         super().execute()
+        datalist = None
+        if self._prevstack is not None:
+            datalist = []
+            for dataset in self._prevstack:
+                datalist.append(dataset.result())
+
         dirname = self._dirname
         if not dirname=='NONE':
             io_helpers.thumbnail_plot(dirname,self._fname,self._previous.result(),
-                                      xscale=self._xaxis,tscale=self._taxis,
+                                      xscale=self._xaxis,tscale=self._taxis,data2=datalist,
                                       plt_format=self._format, std_val_mult=self._std_val_mult, jsonArgs=self._jsonArgs)
 
 '''

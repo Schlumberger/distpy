@@ -327,7 +327,7 @@ def csv2dts(filein, stem, configJson):
  Write a thumbnail plot using matplotlib
 '''
 def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_format='png',
-                   std_val_mult=1.0, jsonArgs={}):
+                   std_val_mult=1.0, data2=None, jsonArgs={}):
     cmap=jsonArgs.get('cmap','viridis')
     axes=jsonArgs.get('axes',['depth (m)','time (s)'])
     xaxis=jsonArgs.get('xaxis',None)
@@ -365,6 +365,18 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     taxis2= list(map(dtime.fromtimestamp, taxis.tolist()))
     taxis2= mdates.date2num(taxis2)
 
+    if plot_style=='scatter':
+        if data2 is None:
+            plot_style='imshow'
+        else:
+            data_2 = data2[0]
+            s=None
+            c=None
+            if len(data2)>1:
+                c=data2[1].flatten()
+            if len(data2)>2:
+                s=data2[2].flatten()
+            img = plt.scatter(data.flatten(),data_2.flatten(),c=c, s=s, cmap=cscale)
     if plot_style=='imshow':
         img = plt.imshow(data, cmap=cscale, aspect='auto', vmin=vminval, vmax=vmaxval, extent=[t_lims[0],t_lims[1],xscale[1],xscale[0]])
         cbar = fig.colorbar(img)
@@ -401,6 +413,7 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
         plt.show()
     else:
         plt.close()
+
 
 '''
  numpy_out - write the current data block to file.

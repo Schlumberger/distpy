@@ -52,5 +52,6 @@ __status__ = 'Pre-alpha'
 # 1.18.0 Generalized the kmeans clustering
 # 1.19.0 CSV ingestion to WITSML
 # 1.20.0 CSV ingestion from DTS-style (depth as rows, time as columns)
-__version__ = '1.20.0'
+# 1.21.0 Improvement in data-handling of difference cases so that they can be plotted
+__version__ = '1.21.0'
 

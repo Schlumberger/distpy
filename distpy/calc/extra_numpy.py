@@ -118,7 +118,8 @@ def agnostic_conj(x):
 
 def agnostic_diff(x, n=1, axis=-1):
     xp = GPU_CPU.get_numpy(x)
-    return xp.diff(x,n=n,axis=axis)
+    return xp.diff(x,n=n,axis=axis, append=0)
+
 
 def agnostic_unwrap(x, axis=-1):
     xp = GPU_CPU.get_numpy(x)
@@ -158,6 +159,17 @@ def agnostic_sum(x, axis=None, keepdims= True):
 def agnostic_zeros(x,size_tuple,dtype=numpy.double):
     xp = GPU_CPU.get_numpy(x)
     return xp.zeros(size_tuple,dtype=dtype)
+
+def agnostic_rescale(x):
+    xp = GPU_CPU.get_numpy(x)
+    return (x-xp.amin(x))/(xp.amax(x)-xp.amin(x))
+
+def soft_threshold(x,threshold,direction='greater'):
+    if direction=='>':
+        x[x>threshold]=threshold
+    else:
+        x[x<threshold]=threshold
+    return x
 
     
 '''
