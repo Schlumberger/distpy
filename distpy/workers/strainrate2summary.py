@@ -13,15 +13,12 @@ import distpy.calc.processing_commands as processing_commands
 
 
 def build_command_list(commandJson, data=None, dirout="scratch",
-                       datedir="none",datestring="none",nx=100,prf=10000,xaxis=None,nt=100,
-                       extended_list=[]):
+                       datedir="none",datestring="none",nx=100,prf=10000,xaxis=None,taxis=None,nt=100,
+                       extended_list=[],inline_plots=0):
     if xaxis is None:
         xaxis=numpy.arange(nx)
-    taxis = commandJson.get('taxis',None)
     if taxis is None:
         taxis=numpy.arange(nt)
-    # A convenience for Jupyter Notebooks - when developing workflows we sometimes want to inline plot views
-    inline_plots = commandJson.get('inline_plots',0)
     # initialize the command list that will eventually be executed.
     # This first one is anomalous - need a good way to initiate the top of the tree...
     # possibly this is a root...
@@ -107,9 +104,14 @@ def strainrate2summary(filename, xaxis, prf, dirout, commandJson, extended_list)
     # initialize the command list that will eventually be executed.
     # This first one is anomalous - need a good way to initiate the top of the tree...
     # possibly this is a root...
+    taxis = commandJson.get('taxis',None)
+    # A convenience for Jupyter Notebooks - when developing workflows we sometimes want to inline plot views
+    inline_plots = commandJson.get('inline_plots',0)
+
     command_list=build_command_list(commandJson, data=data,dirout=dirout,
                                     datedir=datedir,datestring=datestring,
-                                    nx=nx,prf=prf,xaxis=xaxis,nt=nt,extended_list=extended_list)
+                                    nx=nx,prf=prf,xaxis=xaxis,taxis=taxis,
+                                    nt=nt,extended_list=extended_list,inline_plots=inline_plots)
 
     # if documenting - that is one path...execution is the other
     if isDocs>0:

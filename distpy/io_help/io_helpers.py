@@ -3,6 +3,7 @@
 import json
 import numpy
 import h5py
+import copy
 
 #...pandas has good support for CSV files
 import pandas
@@ -85,20 +86,55 @@ def latexJson(jsonIn,lines):
     return lines
 
 
-def dot_graph(jsonArgs):
+def dot_graph(jsonArgs, command_list=None):
     lines = []
     fromList=[]
-    fromList.append('load_data_0')
+    nodeList=[]
+    nodeList.append('load_data_0')
     lines.append('digraph G {')
-    for command in jsonArgs:
-        indx=command['uid']
-        fromList.append(command['name']+'_'+str(indx))
-        # from in_uid
-        lines.append(fromList[command['in_uid']]+' -> '+fromList[indx] )
-        prevlist = command.get('gather_uids',[-1])
-        for prev in prevlist:
-            if prev>=0:
-                lines.append(fromList[prev]+' -> '+fromList[indx])
+    if command_list is None:
+        # Basic graph
+        for command in jsonArgs:
+            comment = ''
+            if 'comment' in command.keys():
+                comment = command['comment']
+            else:
+                comment = command['name']
+            formatting = command.get('formatting','')
+            indx=command['uid']
+            nodeList.append(command['name']+'_'+str(indx))
+            lines.append(nodeList[indx] + '[label=\"'+comment+'\",'+formatting+'];')
+            # from in_uid
+            lines.append(nodeList[command['in_uid']]+' -> '+nodeList[indx] )
+            prevlist = command.get('gather_uids',[-1])
+            for prev in prevlist:
+                if prev>=0:
+                    lines.append(nodeList[prev]+' -> '+nodeList[indx])
+    else:
+        # We will pre-pend the list, so make sure we are working on a copy
+        jsonArgs = copy.deepcopy(jsonArgs)
+        jsonArgs.insert(0,{ "name" : "load_data", "uid" : 0, "in_uid" : -1 })
+        # Advanced graphs
+        for command, concreteCommand in zip(jsonArgs,command_list):
+            indx=command['uid']
+            localDoc = concreteCommand.docs()
+            description = 'Undocumented feature'
+            if 'one_liner' in localDoc:
+                description = (localDoc['one_liner'])
+            color = 'color=red,style=filled,fontcolor=white'
+            if concreteCommand.isGPU()==True:
+                color = 'color=green,style=filled,fontcolor=black'
+            #label = '[label=\"'+command['name']+ ' '+description+'\",'+color+']'
+            label = '[label=\"'+command['name']+ '\",'+color+']'
+            nodeList.append(command['name']+'_'+str(indx))
+            lines.append(nodeList[indx] + ' ' + label + ';')
+            # from in_uid
+            if command['in_uid']>=0:
+                lines.append(nodeList[command['in_uid']]+' -> '+nodeList[indx] )
+            prevlist = command.get('gather_uids',[-1])
+            for prev in prevlist:
+                if prev>=0:
+                    lines.append(nodeList[prev]+' -> '+nodeList[indx])
     lines.append('}')
     return lines
     
