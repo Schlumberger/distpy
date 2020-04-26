@@ -38,6 +38,7 @@ universal_arglist = {
     "direction"     : {DEFAULT : ">", DESC : "The direction for applying the threshold, > or <"},
     "double_ended"  : {DEFAULT : -1,   DESC : "For handling double-ended fibre [-1=single-ended, 0=start-of-fibre half, 1=end-of-fibre half"},
     "edge_order"    : {DEFAULT :  1,   DESC : "Gradient is calculatd using N-th order accurate differences at the boundaries"},
+    "filename"      : {DEFAULT : NONE, DESC : "A filename, the complete path will be defined by directory_out and project configurations"},
     "command_list" :  {                DESC : "A list of sub-commands collected in a single macro"},
     "train" :         {                DESC : "A dictionary containing training parameters for keras, e.g. { 'epochs' : 150, 'batch_size' : 10 }"},
     "func" :          {                DESC : "Either rms_from_fft or te_from_fft"}, 
@@ -71,6 +72,7 @@ universal_arglist = {
     "max_velocity":   {DEFAULT : 1600,  DESC : "The maximum phase velocity"},
     "min_velocity":   {DEFAULT : 1400,  DESC : "The minimum phase velocity"},
     "smooth" :        {DEFAULT : 0, DESC : "The smoothing factor for the filter"},
+    "threshold" :     {DEFAULT : 0, DESC : "An upper or lower limit"},
     "bounds" :        {DEFAULT : ([-5,0],[0,400]), DESC : "The bounds on curve fitting, see scipy.optimize.curve_fit"},
     "initSlopes" :    {DEFAULT : [-0.5], DESC : "An initial slope estimate for the curve fitting, see scipy.optimize.curve_fit"},
     "xsample" :       {DEFAULT : 1,     DESC : "The level of downsampling in the x-directioin"},
@@ -288,18 +290,19 @@ class SoftThresholdCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
         self._direction = jsonArgs.get('direction','>')
+        self._threshold = jsonArgs.get('threshold',0.0)
 
     def docs(self):
         docs={}
-        docs['one_liner']="Applies a soft threshold."
-        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['direction'] }
+        docs['one_liner']="Applies a soft threshold, clipping the values at the given threshold."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['direction','threshold'] }
         return docs
 
     def isGPU(self):
         return True
 
     def execute(self):
-        self._result = extra_numpy.soft_threshold(self._previous.result(),direction=self._direction)
+        self._result = extra_numpy.soft_threshold(self._previous.result(),self._threshold,direction=self._direction)
 
 
 '''
@@ -684,7 +687,7 @@ class GaussianCommand(BasicCommand):
         return docs
 
     def execute(self):
-        self._result = ndimage.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode=elf._mode)
+        self._result = ndimage.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode=self._mode)
 
 '''
  SobelCommand : Applies a Sobel edge detection filter using signal.ndarray.sobel()
@@ -888,7 +891,10 @@ class ClipCommand(BasicCommand):
         self._tmin = jsonArgs.get('tmin',numpy.min(self._taxis))
         self._tmax = jsonArgs.get('tmax',numpy.max(self._taxis))
         self._double_ended = jsonArgs.get('double_ended',-1)
-        self._fname = str(int(self._tmin))
+        # for unit tests and documentation...
+        if self._tmin is None:
+            self._tmin=0
+        self._fname = str(numpy.int(self._tmin))
 
     def docs(self):
         docs={}
@@ -966,14 +972,15 @@ class GradientCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
         self._xaxis = jsonArgs['xaxis']
-        self._taxis = jsonArgs['taxis']
+        self._taxis = jsonArgs.get('taxis',None)            
         self._edge_order = jsonArgs.get('edge_order',1)
-        self._axis = jsonArgs.get('axis',None)
+        self._axis = jsonArgs.get('axis',0)
 
     def docs(self):
         docs={}
         docs['one_liner']="Numercal gradient of the data via central differencing."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['edge_order','axis'] }
+        docs['args']['axis']['default']=0
         return docs
 
     def isGPU(self):
@@ -1199,11 +1206,40 @@ class WriteNPYCommand(BasicCommand):
     def postcond(self):
         return [directory_services.path_join(self._dirname,self._fname+'.npy')]
 
+    def isGPU(self):
+        return True
+
     def execute(self):
         super().execute()
         dirname = self._dirname
         if not dirname=='NONE':
-            io_helpers.numpy_out(dirname,self._fname,self._previous.result())
+            extra_numpy.agnostic_save(dirname,self._fname,self._previous.result())
+
+'''
+ WriteNPYCommand : writes out the current datablock to NPY format
+'''
+class ReadNPYCommand(BasicCommand):
+    def __init__(self, command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._dirname = jsonArgs.get('directory_out','NONE')
+        self._fname = jsonArgs.get('filename','NONE')
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Load a npy format file."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out','filename'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        super().execute()
+        dirname = self._dirname
+        if not dirname=='NONE':
+            # we can use the previous result to tell us whether we are on GPU or CPU
+            self.result = extra_numpy.agnostic_load(dirname,self._fname,self._previous.result())
+
 
 '''
  WriteWITSMLCommand : writes the results to the WITSML/FBE format.
@@ -1489,6 +1525,7 @@ def KnownCommands(knownList):
     knownList['convolve']       = ConvolveCommand
     knownList['correlate']      = CorrelateCommand
     knownList['count_peaks']    = CountPeaksCommand
+    knownList['data_load']      = ReadNPYCommand
     knownList['destripe']       = DestripeCommand
     knownList['diff']           = DiffCommand
     knownList['downsample']     = DownsampleCommand

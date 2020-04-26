@@ -90,9 +90,9 @@ def dot_graph(jsonArgs, command_list=None):
     lines = []
     fromList=[]
     nodeList=[]
-    nodeList.append('load_data_0')
     lines.append('digraph G {')
     if command_list is None:
+        nodeList.append('load_data_0')
         # Basic graph
         for command in jsonArgs:
             comment = ''
@@ -457,6 +457,24 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
 def numpy_out(stem_name,fname, data):
     numpy.save(os.path.join(stem_name,fname+'.npy'),data)
     
+'''
+ concatente_commands - take a command set and concatenate another command set.
+                       No efficiency gains here...
+'''
+def concatenate_commands(orig_commands, new_commands):
+    id_offset = orig_commands[-1]['uid']
+    for command in new_commands:
+        command['uid'] = command['uid']+id_offset
+        command['in_uid'] = command['in_uid']+id_offset
+        gather_uids = command.get('gather_uids',[])
+        gather_uids_new = []
+        for uid in gather_uids:
+            gather_uids_new.append(uid+id_offset)
+        if len(gather_uids_new)>0:
+            command['gather_uids']=gather_uids_new
+        orig_command.append(command)
+    return orig_commands
+
 
 '''
  write_plot : under development, this can replace plt.savefig() for compatibility with google cloud blob storage.

@@ -1,7 +1,7 @@
 # (C) 2020, Schlumberger. Refer to LICENSE.
 
 # For GPU support also see agnostic.py
-
+import os
 import numpy
 import datetime
 class nokeras_load_model(object):
@@ -163,6 +163,23 @@ def agnostic_zeros(x,size_tuple,dtype=numpy.double):
 def agnostic_rescale(x):
     xp = GPU_CPU.get_numpy(x)
     return (x-xp.amin(x))/(xp.amax(x)-xp.amin(x))
+
+'''
+ agnostic_save : allows numpy.save and cupy.save
+   Design decision to place this IO function here rather than in io_help.io_helpers
+
+   The older io_helper.numpy_out() is deprecatd and may be removed at a later date
+'''
+def agnostic_save(stem_name,fname,x):
+    xp=GPU_CPU.get_numpy(x)
+    xp.save(os.path.join(stem_name,fname+'.npy'),data)
+
+'''
+ agnostic_load : allows a generic load - for arbitrary masks and filters.
+'''
+def agnostic_load(stem_name,fname,x):
+    xp=GPU_CPU.get_numpy(x)
+    return xp.load(os.path.join(stem_name,fname))
 
 def soft_threshold(x,threshold,direction='greater'):
     if direction=='>':
