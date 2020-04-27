@@ -55,5 +55,6 @@ __status__ = 'Pre-alpha'
 # 1.21.0 Improvement in data-handling of difference cases so that they can be plotted
 # 1.22.0 Improvement in self documenting features
 # 1.23.0 GPU write_numpy to make hybrid cloud easier as a deployment
-__version__ = '1.23.0'
+# 1.23.1 Fix a bug in write_numpy
+__version__ = '1.23.1'
 

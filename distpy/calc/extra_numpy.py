@@ -172,7 +172,7 @@ def agnostic_rescale(x):
 '''
 def agnostic_save(stem_name,fname,x):
     xp=GPU_CPU.get_numpy(x)
-    xp.save(os.path.join(stem_name,fname+'.npy'),data)
+    xp.save(os.path.join(stem_name,fname+'.npy'),x)
 
 '''
  agnostic_load : allows a generic load - for arbitrary masks and filters.
