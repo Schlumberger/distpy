@@ -160,9 +160,14 @@ def agnostic_zeros(x,size_tuple,dtype=numpy.double):
     xp = GPU_CPU.get_numpy(x)
     return xp.zeros(size_tuple,dtype=dtype)
 
-def agnostic_rescale(x):
+def agnostic_rescale(x,external_scaling=None):
     xp = GPU_CPU.get_numpy(x)
-    return (x-xp.amin(x))/(xp.amax(x)-xp.amin(x))
+    minx = xp.amin(x)
+    maxx = xp.amax(x)
+    if external_scaling is not None:
+        minx = xp.amin(external_scaling)
+        maxx = xp.amax(external_scaling)
+    return (x-minx)/(maxx-minx)
 
 '''
  agnostic_save : allows numpy.save and cupy.save
@@ -186,6 +191,13 @@ def soft_threshold(x,threshold,direction='greater'):
         x[x>threshold]=threshold
     else:
         x[x<threshold]=threshold
+    return x
+
+def hard_threshold(x,threshold, y ,direction='greater'):
+    if direction=='>':
+        x[x>threshold]=y
+    else:
+        x[x<threshold]=y
     return x
 
     

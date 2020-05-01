@@ -42,5 +42,8 @@ def CommandFactory(commandList, commandJson, extended_list=[]):
     commandJson['commands']=prev_stack
     if previous>=0:
         prev_result = commandList[previous]
+        if name not in knownList:
+            name = 'NONE'
         return (knownList[name](prev_result,commandJson))
+        
     return None

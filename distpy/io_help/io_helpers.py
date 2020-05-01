@@ -373,12 +373,19 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     dots_per_inch = jsonArgs.get('dpi',300)
     plot_style = jsonArgs.get('plot_style','imshow')
     NLEVELS=30
-    plt.figure()
+    title_string = dtime.fromtimestamp(int(fname)).strftime('%Y-%m-%d %H:%M:%S')
+    fig, ax = plt.subplots(figsize=figure_size, dpi=dots_per_inch)
     print('xscale',xscale)
     nx=data.shape[0]
-    nt=data.shape[1]
     if xscale[0]==xscale[-1]:
         xscale=[0,nx]
+    if data.ndim<2:
+        plt.plot(xaxis,data)
+        ax.set_xlim(xscale[0],xscale[-1])
+        plt.title(title_string + ' (' + fname + ')', fontsize=10)
+        return
+
+    nt=data.shape[1]
     if tscale[0]==tscale[-1]:
         tscale=[0,nt]
         
@@ -390,8 +397,6 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     vminval = meanval - stdval
     vmaxval = meanval + stdval
     print(vminval,vmaxval)
-    plt.figure(figsize=figure_size, dpi=dots_per_inch)
-    fig, ax = plt.subplots()
     t_lims = tscale
     if tscale[0]>1e+7:
         # https://stackoverflow.com/questions/23139595/dates-in-the-xaxis-for-a-matplotlib-plot-with-imshow
@@ -430,7 +435,6 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
         ax.xaxis.set_major_formatter(date_format)
         # set the dates to diagonal so they fit better
         fig.autofmt_xdate()
-    title_string = dtime.fromtimestamp(int(fname)).strftime('%Y-%m-%d %H:%M:%S')
     plt.title(title_string + ' (' + fname + ')', fontsize=10)
     plt.xlabel(axes[1])
     plt.ylabel(axes[0])

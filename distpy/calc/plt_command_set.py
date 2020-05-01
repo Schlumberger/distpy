@@ -58,10 +58,11 @@ class ThumbnailCommand(BasicCommand):
     def execute(self):
         super().execute()
         datalist = None
-        if self._prevstack is not None:
-            datalist = []
-            for dataset in self._prevstack:
-                datalist.append(dataset.result())
+        if len(self._prevstack)>0:
+            if self._prevstack[0] is not None:
+                datalist = []
+                for dataset in self._prevstack:
+                    datalist.append(dataset.result())
 
         dirname = self._dirname
         if not dirname=='NONE':

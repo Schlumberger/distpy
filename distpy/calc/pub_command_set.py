@@ -73,6 +73,7 @@ universal_arglist = {
     "min_velocity":   {DEFAULT : 1400,  DESC : "The minimum phase velocity"},
     "smooth" :        {DEFAULT : 0, DESC : "The smoothing factor for the filter"},
     "threshold" :     {DEFAULT : 0, DESC : "An upper or lower limit"},
+    "value" :         {DEFAULT : 0, DESC : "A single floating point number"},
     "bounds" :        {DEFAULT : ([-5,0],[0,400]), DESC : "The bounds on curve fitting, see scipy.optimize.curve_fit"},
     "initSlopes" :    {DEFAULT : [-0.5], DESC : "An initial slope estimate for the curve fitting, see scipy.optimize.curve_fit"},
     "xsample" :       {DEFAULT : 1,     DESC : "The level of downsampling in the x-directioin"},
@@ -272,17 +273,22 @@ class AngleCommand(BasicCommand):
 class RescaleCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
+        self._prevstack = jsonArgs.get('commands',[None])
 
     def docs(self):
         docs={}
-        docs['one_liner']="Rescale the data from 0 to 1"
+        docs['one_liner']="Rescale the data from 0 to 1. If an additional data set it suppied, the rescale uses that data for min() and max()"
         return docs
 
     def isGPU(self):
         return True
 
     def execute(self):
-        self._result = extra_numpy.agnostic_rescale(self._previous.result())
+        Y = None
+        if len(self._prevstack)>0:
+            if self._prevstack[0] is not None:
+                Y = self._prevstack[0].result()
+        self._result = extra_numpy.agnostic_rescale(self._previous.result(), external_scaling=Y)
 '''
  SoftThresholdCommand : applies a threshold greater or less
 '''
@@ -303,6 +309,29 @@ class SoftThresholdCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.soft_threshold(self._previous.result(),self._threshold,direction=self._direction)
+
+'''
+ HardThresholdCommand : applies a threshold greater or less
+'''
+class HardThresholdCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._direction = jsonArgs.get('direction','>')
+        self._threshold = jsonArgs.get('threshold',0.0)
+        self._value     = jsonArgs.get('value',0.0)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Applies a hard threshold, all values beyond the threshold are replaced with the supplied value."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['direction','threshold','value'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.hard_threshold(self._previous.result(),self._threshold, self._value,direction=self._direction)
+
 
 
 '''
@@ -407,6 +436,8 @@ class KMeansCommand(BasicCommand):
 
     def execute(self):
         n_clusters = self._args.get('n_clusters',10)
+        if len(self._prevstack) < 1:
+            self._prevstack = [None]
         if self._prevstack[0] is not None:
             shape_out = self._previous.result().shape
             for a in range(len(self._prevstack)):
@@ -1196,6 +1227,9 @@ class WriteNPYCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._dirname = jsonArgs.get('directory_out','NONE')
         self._fname = jsonArgs.get('date_dir','NONE')
+        self._xaxis = jsonArgs['xaxis']
+        self._taxis = jsonArgs.get('taxis',None)            
+
 
     def docs(self):
         docs={}
@@ -1214,6 +1248,9 @@ class WriteNPYCommand(BasicCommand):
         dirname = self._dirname
         if not dirname=='NONE':
             extra_numpy.agnostic_save(dirname,self._fname,self._previous.result())
+            extra_numpy.agnostic_save(dirname,'measured_depth',self._xaxis)
+            if self._taxis is not None:
+                extra_numpy.agnostic_save(dirname,'time',self._taxis)
 
 '''
  WriteNPYCommand : writes out the current datablock to NPY format
@@ -1537,6 +1574,7 @@ def KnownCommands(knownList):
     knownList['geometric_mean'] = GeometricMeanCommand
     knownList['gradient']       = GradientCommand
     knownList['harmonic_mean']  = HarmonicMeanCommand
+    knownList['hard_threshold'] = HardThresholdCommand
     knownList['ifft']           = IFFTCommand
     knownList['keras']          = KerasCommand
     knownList['kmeans']         = KMeansCommand

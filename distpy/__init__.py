@@ -56,5 +56,8 @@ __status__ = 'Pre-alpha'
 # 1.22.0 Improvement in self documenting features
 # 1.23.0 GPU write_numpy to make hybrid cloud easier as a deployment
 # 1.23.1 Fix a bug in write_numpy
-__version__ = '1.23.1'
+# 1.24.0 Allowed an external data-set to be used for min() and max() in the rescale command
+# 1.24.1 Improved behaviour when an unknown command is tried
+__version__ = '1.24.1'
+
 
