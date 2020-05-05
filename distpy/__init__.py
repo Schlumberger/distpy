@@ -58,6 +58,9 @@ __status__ = 'Pre-alpha'
 # 1.23.1 Fix a bug in write_numpy
 # 1.24.0 Allowed an external data-set to be used for min() and max() in the rescale command
 # 1.24.1 Improved behaviour when an unknown command is tried
-__version__ = '1.24.1'
+# 1.25.0 Added the extract command so that a single line can be taken
+# 1.25.1 Reshape extract results to fit the pattern (n,1) of 2D arrays used by distpy
+# 1.26.0 Select cluster using bounded_select, returns a mask
+__version__ = '1.26.0'
 
 

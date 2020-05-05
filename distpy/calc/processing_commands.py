@@ -25,6 +25,8 @@ def CommandFactory(commandList, commandJson, extended_list=[]):
     knownList = plt_command_set.KnownCommands(knownList)
     # - load any supplied extensions
     for module_name in extended_list:
+        if type(module_name) is dict:
+            knownList = {**knownList, **module_name}
         exec('import '+module_name)
         exec('knownList = '+module_name+'.KnownCommands(knownList)')
     

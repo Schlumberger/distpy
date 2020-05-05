@@ -200,6 +200,13 @@ def hard_threshold(x,threshold, y ,direction='greater'):
         x[x<threshold]=y
     return x
 
+def bounded_select(x, vel_low, vel_high):
+    nx=x.shape[0]
+    nt=x.shape[1]
+    velm = numpy.zeros((nx,nt),dtype=numpy.double)
+    velm[numpy.where(x > vel_low)]=1.0
+    velm[numpy.where(x > vel_high)]=0.0
+    return velm
     
 '''
   Extract the analytic signal for a give frequency within a
@@ -494,9 +501,7 @@ def vel_mask(velmap,vel_low,vel_high,smooth=0):
     # NOT GPU COMPATIBLE DUE TO scipy.signal.filtfilt
     nx=velmap.shape[0]
     nt=velmap.shape[1]
-    velm = numpy.zeros((nx,nt),dtype=numpy.double)
-    velm[numpy.where(velmap > vel_low)]=1.0
-    velm[numpy.where(velmap > vel_high)]=0.0
+    velm = bounded_select(velmap, vel_low, vel_high)
     if smooth>1:
         Wn = 1.0/smooth
         b, a = scipy.signal.butter(5,Wn,'low',output='ba')

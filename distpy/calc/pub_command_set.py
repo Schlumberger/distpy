@@ -49,6 +49,7 @@ universal_arglist = {
     "prf" :           {DEFAULT : 10000, DESC : "The pulse repetition frequency in Hz (one over the time sample rate)"},
     "freq" :          {DEFAULT : 200.0, DESC : "A frequency in Hz or a wavenumber in 1/m"},
     "filename" :      {DEFAULT : NONE,  DESC : "A filename for read or write operations"},
+    "index" :         {DEFAULT : 0,     DESC : "The index of a row or column in sanmples"},
     "axis" :          {DEFAULT : -1,    DESC : "The axis to apply an operation to, typically in distpy axis=0 for depth and axis=1 for time"},
     "xsigma" :        {DEFAULT : 1.0,   DESC : "A standard deviation in the x-direction"},
     "tsigma" :        {DEFAULT : 1.0,   DESC : "A standard deviation in the time direction"},
@@ -71,6 +72,8 @@ universal_arglist = {
     "moment" :        {DEFAULT : 1,     DESC : "The order of central moment, see scipy.stats.moment"},
     "max_velocity":   {DEFAULT : 1600,  DESC : "The maximum phase velocity"},
     "min_velocity":   {DEFAULT : 1400,  DESC : "The minimum phase velocity"},
+    "max_val":        {DEFAULT : 1.0,   DESC : "An upper bound"},
+    "min_val":        {DEFAULT : 0.0,   DESC : "A lower bound"},
     "smooth" :        {DEFAULT : 0, DESC : "The smoothing factor for the filter"},
     "threshold" :     {DEFAULT : 0, DESC : "An upper or lower limit"},
     "value" :         {DEFAULT : 0, DESC : "A single floating point number"},
@@ -825,10 +828,11 @@ class RollCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis  = jsonArgs.get('axis',1)
         self._shift = jsonArgs.get('window_length',1)
+        self._prevstack = jsonArgs.get('commands',[None])
 
     def docs(self):
         docs={}
-        docs['one_liner']="Rolls the data along the specified axis, using numpy.roll()."
+        docs['one_liner']="Rolls the data along the specified axis, using numpy.roll(). An array can be passed in through gather_uid"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','window_length'] }
         docs['args']['axis']['default']=1
         docs['args']['window_length']['default']=1
@@ -838,7 +842,20 @@ class RollCommand(BasicCommand):
         return True
 
     def execute(self):
-        self._result = extra_numpy.agnostic_roll(self._previous.result(), self._shift, axis=self._axis)
+        Y = None
+        if len(self._prevstack)>0:
+            if self._prevstack[0] is not None:
+                Y = self._prevstack[0].result()
+        if Y is not None:
+            self._result = numpy.zeros(((self._previous.result()).shape))
+            if self._axis==1:
+                for a in range((self._previous.result()).shape[0]):
+                    self._result[a,:]=extra_numpy.agnostic_roll((self._previous.result())[a,:], Y[a])
+            else:
+                for a in range((self._previous.result()).shape[1]):
+                    self._result[:,a]=extra_numpy.agnostic_roll((self._previous.result())[:,a], Y[a])
+        else:
+            self._result = extra_numpy.agnostic_roll(self._previous.result(), self._shift, axis=self._axis)
 
 
 
@@ -1109,6 +1126,7 @@ class MultiplyCommand(BasicCommand):
         return True
 
     def execute(self):
+        
         if self._prevstack[0]!=None:
             self._result = self._previous.result()*((self._prevstack[0]).result())
 '''
@@ -1177,6 +1195,34 @@ class GatherCommand(BasicCommand):
             for dataset in self._prevstack:
                 datalist.append(dataset.result())
             self._result = extra_numpy.gather(self._previous.result(),datalist)
+
+'''
+ ExtractCommand : Extract a named column or row
+'''
+class ExtractCommand(BasicCommand):
+    def __init__(self,command,jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._prevstack = jsonArgs.get('commands',[None])
+        self._idx = jsonArgs.get('index',0)
+        self._axis = jsonArgs.get('axis',1)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Extracts a single row or column as a separate dataset"
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['index','axis'] }
+        docs['args']['axis']['default'] = 1
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        if self._axis==0:
+            self._result = (self._previous.result())[self._idx,:]
+        else:
+            self._result = (self._previous.result())[:,self._idx]
+        self._result = numpy.reshape(self._result,(self._result.flatten().shape[0],1))
+
 
 '''
  StaLtaCommand : short-term average to long-term-average onset-picker transform
@@ -1503,6 +1549,26 @@ class VelocityMaskCommand(BasicCommand):
         self._result = extra_numpy.vel_mask(velmap,minv,maxv,smoothval)
 
 '''
+ BoundedSelectCommand : return a mask within a pair of bounds on the data
+'''
+class BoundedSelectCommand(BasicCommand):
+    def __init__(self, command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._args = jsonArgs
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Return a masks within a pair of bounds on the data (e.g. selecting a cluster from k-means results)."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['min_val','max_val'] }
+        return docs
+
+    def execute(self):
+        velmap = self._previous.result()
+        minv = self._args.get('min_val',0.0)
+        maxv = self._args.get('max_val', 1.0)
+        self._result = extra_numpy.bounded_select(velmap,minv,maxv)
+
+'''
  MultipleCalcsCommand : allows multiple calculations to be made using the reduced_mem form.  
 '''
 class MultipleCalcsCommand(BasicCommand):
@@ -1556,6 +1622,7 @@ def KnownCommands(knownList):
     knownList['analytic_signal']= AnalyticSignalCommand
     knownList['argmax']         = ArgmaxCommand
     knownList['approx_vlf']     = ApproxVlfCommand
+    knownList['bounded_select'] = BoundedSelectCommand
     knownList['butter']         = ButterCommand
     knownList['clip']           = ClipCommand
     knownList['conj']           = ConjCommand
@@ -1567,6 +1634,7 @@ def KnownCommands(knownList):
     knownList['diff']           = DiffCommand
     knownList['downsample']     = DownsampleCommand
     knownList['down_wave']      = DownCommand
+    knownList['extract']        = ExtractCommand
     knownList['fft']            = FFTCommand
     knownList['from_gpu']       = FromGPUCommand
     knownList['gather']         = GatherCommand
