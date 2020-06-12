@@ -61,6 +61,8 @@ __status__ = 'Pre-alpha'
 # 1.25.0 Added the extract command so that a single line can be taken
 # 1.25.1 Reshape extract results to fit the pattern (n,1) of 2D arrays used by distpy
 # 1.26.0 Select cluster using bounded_select, returns a mask
-__version__ = '1.26.0'
+# 1.27.0 Peak broadening command
+# 1.28.0 dip_filter, makes use of the existing convolve 2D filtering
+__version__ = '1.28.0'
 
 

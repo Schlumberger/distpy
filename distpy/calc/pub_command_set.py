@@ -72,6 +72,9 @@ universal_arglist = {
     "moment" :        {DEFAULT : 1,     DESC : "The order of central moment, see scipy.stats.moment"},
     "max_velocity":   {DEFAULT : 1600,  DESC : "The maximum phase velocity"},
     "min_velocity":   {DEFAULT : 1400,  DESC : "The minimum phase velocity"},
+    "velocity":       {DEFAULT : 1400,  DESC : "Phase velocity"},
+    "bandwidth":      {DEFAULT : 0.1,   DESC : "Width of the Gaussian ray in pixels"},
+    "shape":          {DEFAULT : [9,9], DESC : "Shape of the filter in pixels e.g. [9,9], both values must be even"},
     "max_val":        {DEFAULT : 1.0,   DESC : "An upper bound"},
     "min_val":        {DEFAULT : 0.0,   DESC : "A lower bound"},
     "smooth" :        {DEFAULT : 0, DESC : "The smoothing factor for the filter"},
@@ -312,6 +315,27 @@ class SoftThresholdCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.soft_threshold(self._previous.result(),self._threshold,direction=self._direction)
+
+'''
+ PeakBroadeningCommand : broadens any peaks by duplicating the maximum value
+'''
+class PeakBroadeningCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._window_length = jsonArgs.get('window_length',50)
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="Broadening of the local maxima, by extending them in time."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):
+        self._result = extra_numpy.broaden(self._previous.result(),window_length=self._window_length)
+
 
 '''
  HardThresholdCommand : applies a threshold greater or less
@@ -758,7 +782,33 @@ class ConvolveCommand(BasicCommand):
         return docs
 
     def execute(self):
-        self._result = ndimage.convolve(self._previous.result(),self._coeffs, mode=self._mode)
+        self._result = extra_numpy.convolve2D(self._previous.result(),self._coeffs, mode=self._mode)
+
+'''
+ TXDipCommand : Gaussian-ray dip filter in the x-t domain
+'''
+class TXDipCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._args=jsonArgs
+
+    def docs(self):
+        docs={}
+        docs['one_liner']="time-space domain dip filter."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['velocity','bandwidth','shape'] }
+        docs['args']['velocity']['default'] = 100 
+        docs['args']['bandwidth']['default'] = 0.1 
+        docs['args']['shape']['default'] = [9,9] 
+        return docs
+
+    def execute(self):
+        dx = numpy.abs(self._args['xaxis'][1]-self._args['xaxis'][0])
+        dt = 1.0/self._args['prf']
+        speed = self._args.get('velocity',100)
+        bandwidth = self._args.get('bandwidth',0.1)
+        boxshape = self._args.get('shape',[9,9])
+        
+        self._result = extra_numpy.tx_dipfilter(self._previous.result(),dx,dt,speed,bandwidth=0.1,width=9,height=9)
 
 '''
  CorrelateCommand : Applies the supplied correlation filter
@@ -1623,6 +1673,7 @@ def KnownCommands(knownList):
     knownList['argmax']         = ArgmaxCommand
     knownList['approx_vlf']     = ApproxVlfCommand
     knownList['bounded_select'] = BoundedSelectCommand
+    knownList['broaden']        = PeakBroadeningCommand
     knownList['butter']         = ButterCommand
     knownList['clip']           = ClipCommand
     knownList['conj']           = ConjCommand
@@ -1633,6 +1684,7 @@ def KnownCommands(knownList):
     knownList['destripe']       = DestripeCommand
     knownList['diff']           = DiffCommand
     knownList['downsample']     = DownsampleCommand
+    knownList['dip_filter']     = TXDipCommand
     knownList['down_wave']      = DownCommand
     knownList['extract']        = ExtractCommand
     knownList['fft']            = FFTCommand

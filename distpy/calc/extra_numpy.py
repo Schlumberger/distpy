@@ -186,6 +186,16 @@ def agnostic_load(stem_name,fname,x):
     xp=GPU_CPU.get_numpy(x)
     return xp.load(os.path.join(stem_name,fname))
 
+'''
+ broaden : broadens the maxima in the image
+           This is useful for event picking as it does not change the velocity
+'''
+def broaden(x,window_length=50):
+    data_test = copy.deepcopy(x)
+    for a in range(1,window_length):
+        (data_test[:,:-a])[x[:,a:]>data_test[:,:-a]]=(x[:,a:])[x[:,a:]>data_test[:,:-a]]
+    return data_test
+
 def soft_threshold(x,threshold,direction='greater'):
     if direction=='>':
         x[x>threshold]=threshold
@@ -556,6 +566,47 @@ def sta_lta(data, sta, lta):
     lta_result = ndimage.uniform_filter(data,size=(1,lta),mode='nearest')/lta
     lta_result[numpy.where(numpy.abs(lta_result)<1e-6)]=1e-6
     return (sta_result/lta_result)
+
+# Potentially a GPU-ready function
+def convolve2D(data, weights,mode='nearest'):
+    return ndimage.convolve(data,weights,mode=mode)
+'''
+   tx_dipfilter : Estimates the mean amplitude on the
+                 requested dip and removes it from the
+                  central point.
+                 A "fat ray" shaped using a Gaussian is mapped onto
+                the filter. The mean amplitude on the ray is subtracted
+                from the central pixel.
+                Like most t-x domain filters this filter will alias
+                The test example in main() shows this in the F-K plot.
+
+                data      : (nx,nt) t-x domain data
+                dx        : spacing in the x-direction
+                dt        : spacing in the t-direction
+                speed     : directional -ve for downgoing waves
+                bandwidth : Gaussian shape (width of the bandlimited filter
+                width     : pixels in x-direction
+                height    : pixels in t-direction
+'''
+def tx_dipfilter(data,dx,dt,speed,bandwidth=0.1,width=9,height=9):
+    middlex = int((width-1)/2)
+    middlet = int((height-1)/2)
+    weights = numpy.zeros((width,height),dtype=numpy.double)
+    for a in range(width):
+        for b in range(height):
+            x=(a-middlex)
+            t=(b-middlet)
+            # don't need absolute distance as we only use its square
+            distance = ((speed*dt*t)+(dx*x))/(speed)
+            # Gaussian weighting
+            weights[a,b]=numpy.exp(-(distance**2/bandwidth**2))
+    # mean value on the dip
+    weights = weights/numpy.sum(weights)
+    # remove the mean amplitude on the dip from the data
+    weights=-weights
+    weights[middlex,middlet]+=1
+    return convolve2D(data,weights)
+
 
 '''
  peak_to_peak : find the largest range occurring within the provided window
