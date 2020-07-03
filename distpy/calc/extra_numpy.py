@@ -4,23 +4,7 @@
 import os
 import numpy
 import datetime
-class nokeras_load_model(object):
-    def __init__(self):
-        pass
 
-    def load_model(data):
-        print("keras comomand used, but keras module not installed, a null operations is assumed.")
-        return data
-try:
-    from keras.models import load_model
-    class keras_load_model(nokeras_load_model):
-        def __init__(self):
-            pass
-        def load_model(self,data):
-            return load_model(data)
-except ImportError:
-    class keras_load_model(nokeras_load_model):
-        pass
     
 from sklearn.cluster import KMeans
 
@@ -770,6 +754,25 @@ def hash(data,ioffset=0):
   keras_model : load a saved keras model for evaluation or further training
 '''
 def keras_model(data,kerasfile,Y=None,train=None):
+    # Make sure we only import keras/tensorflow here (for multiprocessing to work)
+    # and make sure that there is a null behaviour (because keras/tensorflow is
+    # a big memory requirement, so not all systems will support it)
+    class nokeras_load_model(object):
+        def __init__(self):
+            pass
+        def load_model(data):
+            print("keras comomand used, but keras module not installed, a null operations is assumed.")
+            return data
+    try:
+        from keras.models import load_model
+        class keras_load_model(nokeras_load_model):
+            def __init__(self):
+                pass
+            def load_model(self,data):
+                return load_model(data)
+    except ImportError:
+        class keras_load_model(nokeras_load_model):
+            pass
     # NULL behaviour is to simply return the input
     if kerasfile is None:
         return data

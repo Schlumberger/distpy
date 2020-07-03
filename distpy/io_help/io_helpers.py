@@ -4,6 +4,7 @@ import json
 import numpy
 import h5py
 import copy
+import re
 
 #...pandas has good support for CSV files
 import pandas
@@ -296,6 +297,24 @@ def csv2fbe(filein, stem, configJson):
         # so we remo
         witsmlfbe.writeFBE(dirout,fileout,root)
 '''
+  remove_trailing_number() : Issue if a supplied CSV has duplicate timestamps in the columns
+                            the pandas.read_csv() does not allow duplicated columns and so introduces appending .1, .2 etc.
+                            to the column names.
+                            However, datatime.strptime() demands a fixed format - which these columns no longer have...
+                            so this function parses a list of strings and removes a trailing .* string, if one exists
+'''
+def remove_trailing_number(list_of_strings):
+    date_re = re.compile(r'[.].*$')
+    newlist = []
+    for one_string in list_of_strings:
+        endpart = date_re.search(one_string)
+        if endpart is None:
+            newlist.append(one_string)
+        else:
+            newlist.append(one_string[:endpart.span()[0]])
+    return newlist
+
+'''
  csv2dts - handles gridded DTS data with rows of depth and
            columns that are timesteamps
 
@@ -337,6 +356,12 @@ def csv2dts(filein, stem, configJson):
             if firstTime == True:
                 xaxis = numpy.array(df[column].tolist())
             else:
+                # Fix possible problem caused by pandas reader's "mangle" system
+                column = str.strip(column)
+                date_re = re.compile(r'[.].*$')
+                endpart = date_re.search(column)
+                if endpart is not None:
+                    column = column[:endpart.span()[0]]
                 timeval = dtime.strptime(column,TIME_FORMAT)
                 fileout = str(int(timeval.timestamp()))
                 datestring = dtime.fromtimestamp(int(fileout)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
@@ -348,7 +373,10 @@ def csv2dts(filein, stem, configJson):
             firstTime=False
     else:
         xaxis = numpy.squeeze(numpy.array(df.values[:,0]))
-        cols = list(df.columns.values)
+        # PROBLEM - duplicate times are appended by .1, .2, .3 etc.
+        cols = list(map(str.strip, list(df.columns.values)))
+        # regex to find a trailing .* in the string...
+        cols = remove_trailing_number(cols)
         taxis_dates = numpy.array(list(map(dtime.strptime, cols[1:], itertools.repeat(TIME_FORMAT,len(cols[1:])))))
         taxis = numpy.array([ts.timestamp() for ts in taxis_dates])
         data = df.values[:,1:]

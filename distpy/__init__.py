@@ -63,6 +63,7 @@ __status__ = 'Pre-alpha'
 # 1.26.0 Select cluster using bounded_select, returns a mask
 # 1.27.0 Peak broadening command
 # 1.28.0 dip_filter, makes use of the existing convolve 2D filtering
-__version__ = '1.28.0'
+# 1.29.0 Generic ingestion, and the in-memory option to support the CASE01 example
+__version__ = '1.29.0'
 
 

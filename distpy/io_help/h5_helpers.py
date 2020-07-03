@@ -63,7 +63,7 @@ def read_h5(root, basepath):
              Reads an h5 file. First version supports files that write 1-second
              chunks in a 'data','depth,'time' format.
 '''
-def type0_h5(readObj, basepath, filename):
+def type0_h5(readObj, basepath, filename, inMem=False):
     # filename contains datestamp...
     # 161215_053839.h5
     # 1234567890123456
@@ -75,22 +75,37 @@ def type0_h5(readObj, basepath, filename):
     minute = int(endFname[9:11])
     second = int(endFname[11:13])
     timeObj = dtime(2000+year,month,day,hour,minute,second)
-    unixtime = timeObj.timestamp()
+    unixtime = int(timeObj.timestamp())
     print(str(unixtime))
 
-
-    numpy.save(os.path.join(basepath,'measured_depth.npy'),readObj['depth'][()])
+    xaxis = readObj['depth'][()]
+    if inMem==False:
+        numpy.save(os.path.join(basepath,'measured_depth.npy'),xaxis)
     total_traces = readObj['data'].shape[0]
     chunksize = readObj['data'].chunks[0]
+
+    prf=chunksize
+    nt=total_traces
+    nx = xaxis.shape[0]
+
+    data = numpy.zeros((1,1,1),dtype=numpy.double)
+    if inMem==True:
+        data = numpy.zeros((int(nt/prf),nx,prf),dtype=numpy.double)
+
+ 
     increment=0
     for a in range(0,total_traces,chunksize):
-        fname = str(int(unixtime+increment))+'.npy'
-        fullPath = os.path.join(basepath,fname)
-        if not os.path.exists(fullPath):
-            numpy.save(fullPath,readObj['data'][a:a+chunksize,:].transpose())
+        if inMem==False:
+            fname = str(int(unixtime+increment))+'.npy'
+            fullPath = os.path.join(basepath,fname)
+            if not os.path.exists(fullPath):
+                numpy.save(fullPath,readObj['data'][a:a+chunksize,:].transpose())
+            else:
+                print(fullPath,' exists, assuming restart run and skipping.')
         else:
-            print(fullPath,' exists, assuming restart run and skipping.')
+            data[increment,:,:]=fullPath,readObj['data'][a:a+chunksize,:].transpose()
         increment+=1
+    return { "data" : data, "xaxis" : xaxis, "unixtime" : unixtime }
 
 '''
  type1_h5  : A common HDF5 format used in DAS
@@ -100,7 +115,7 @@ def type0_h5(readObj, basepath, filename):
 
      This example is given in https://github.com/Schlumberger/distpy/wiki/Dev-Tutorial-:-Extending-distpy-with-new-ingesters
 '''
-def type1_h5(readObj, basepath):
+def type1_h5(readObj, basepath, inMem=False):
     depths = readObj['/Acquisition/FacilityCalibration[0]/Calibration[0]/LocusDepthPoint']
     times  = readObj['/Acquisition/Raw[0]/RawDataTime']
     
@@ -113,47 +128,60 @@ def type1_h5(readObj, basepath):
     prf = int(numpy.round(1.0/numpy.mean(time_vals[1:]-time_vals[:-1])))
 
 
-    depth_vals = numpy.zeros((depths.shape[0]))
+    xaxis = numpy.zeros((depths.shape[0]))
     for a in range(depths.shape[0]):
         tuple_val = depths[a]
-        depth_vals[a] = tuple_val[1]
-    numpy.save(os.path.join(basepath,'measured_depth.npy'),depth_vals)
+        xaxis[a] = tuple_val[1]
+    nx = depths.shape[0]
+
+    if inMem==False:
+        numpy.save(os.path.join(basepath,'measured_depth.npy'),depth_vals)
 
     unixtime = int(time_vals[0])
     print(str(unixtime))
 
     # How many 1 second files to write from this HDF5
     nsecs = int(times.shape[0]/prf)
+
+    data = numpy.zeros((1,1,1),dtype=numpy.double)
+    if inMem==True:
+        data = numpy.zeros((nsecs,nx,prf),dtype=numpy.double)    
     ii=0
     for a in range(nsecs):
-        fname = str(int(unixtime+a))+'.npy'
-        fullPath = os.path.join(basepath,fname)
-        if not os.path.exists(fullPath):
-            numpy.save(fullPath,readObj[data_name][ii:ii+prf,:].transpose())
+        if inMem==False:
+            fname = str(int(unixtime+a))+'.npy'
+            fullPath = os.path.join(basepath,fname)
+            if not os.path.exists(fullPath):
+                numpy.save(fullPath,readObj[data_name][ii:ii+prf,:].transpose())
+            else:
+                print(fullPath,' exists, assuming restart run and skipping.')
         else:
-            print(fullPath,' exists, assuming restart run and skipping.')
-        ii+=1
+            data[a,:,:] = readObj[data_name][ii:ii+prf,:].transpose()
+        ii+=prf
+    return { "data" : data, "xaxis" : xaxis, "unixtime" : unixtime }
 
 '''
  ingest_h5 : select the reader that recognizes the file type, and read the file
 '''
-def ingest_h5(filename,basepath):
+def ingest(filename,basepath, inMem=False):
     readObj = h5py.File(filename,'r')
+    retObj={}
     
     # TYPE 0:
     depth = 'depth' in readObj
     #time  = '/Acquisition/Raw[0]/RawDataTime' in readObj
     data  = 'data' in readObj
     if depth and data:
-        type0_h5(readObj,basepath,filename)
+        retObj = type0_h5(readObj,basepath,filename, inMem)
     
     # TYPE 1:
     depth = '/Acquisition/FacilityCalibration[0]/Calibration[0]/LocusDepthPoint' in readObj
     time  = '/Acquisition/Raw[0]/RawDataTime' in readObj
     data  = '/Acquisition/Raw[0]/RawData' in readObj
     if depth and time and data:
-        type1_h5(readObj,basepath)
+        retObj = type1_h5(readObj,basepath, inMem)
     readObj.close()
+    return retObj
 
 
 '''

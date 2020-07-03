@@ -18,20 +18,29 @@ import distpy.io_help.io_helpers as io_helpers
 
 
 
-def main(configOuterFile, extended_list=[]):
+def main(configOuterFile, extended_list=[], dataPack = {}):
     basedir,dirout,jsonConfig,PARALLEL,NCPU,BOX_SIZE, xaxisfile,taxisfile,prf = io_helpers.systemConfig(configOuterFile)
 
-    xaxis = None
-    try:
-        xaxis = numpy.load(xaxisfile)
-    except FileNotFoundError:
-        print('No x-axis specified')
+    # in-memory option
+    data = dataPack.get('data',None)
+    
 
+    xaxis = None
     taxis = None
-    try:
-        taxis = numpy.load(taxisfile)
-    except FileNotFoundError:
-        taxis = None
+    if data is None:
+        try:
+            xaxis = numpy.load(xaxisfile)
+        except FileNotFoundError:
+            print('No x-axis specified')
+        try:
+            taxis = numpy.load(taxisfile)
+        except FileNotFoundError:
+            taxis = None
+    else:
+        # in-memory option
+        xaxis = dataPack['xaxis']
+        unixtime = dataPack['unixtime']
+        prf = data.shape[2]
     
 
     configFile = io_helpers.json_io(jsonConfig,1)
@@ -44,22 +53,33 @@ def main(configOuterFile, extended_list=[]):
     verbose = configData.get('verbose',0)
     if verbose==1:
         print(configData)
- 
+
+    
     #scan for directories
     datafiles=[]
-    for root, dirs, files in os.walk(basedir):
-        for datafile in files:
-            if not datafile=='measured_depth.npy':
-                if not datafile=='time.npy':
-                    datafiles.append(os.path.join(root,datafile))
-        # break here because we don't want subdirectories (SLB case)
-        break
+    if data is None:
+        for root, dirs, files in os.walk(basedir):
+            for datafile in files:
+                if not datafile=='measured_depth.npy':
+                    if not datafile=='time.npy':
+                        datafiles.append(os.path.join(root,datafile))
+            # break here because we don't want subdirectories (SLB case)
+            break
+    else:
+        for a in range(data.shape[0]):
+            # virtual filename
+            datafiles.append(os.path.join(basedir,str(unixtime+a)+'.npy'))
 
     if not PARALLEL:
         # parallel does not work in Techlog...
+        ii=0
         for datafile in datafiles:
             print(datafile)
-            strainrate2summary(datafile, xaxis, prf, dirout, configData, copy.deepcopy(extended_list))
+            if data is None:
+                strainrate2summary(datafile, xaxis, prf, dirout, configData, copy.deepcopy(extended_list),None)
+            else:
+                strainrate2summary(datafile, xaxis, prf, dirout, configData, copy.deepcopy(extended_list),numpy.squeeze(data[ii,:,:]))
+            ii+=1
     else:
         manager = multiprocessing.Manager()
         q = manager.Queue()
@@ -69,8 +89,13 @@ def main(configOuterFile, extended_list=[]):
 
 
         jobs = []
+        i=0
         for datafile in datafiles:
-            job = pool.apply_async(strainrate2summary, [datafile, xaxis, prf,dirout, configData,copy.deepcopy(extended_list)])
+            if data is None:
+                job = pool.apply_async(strainrate2summary, [datafile, xaxis, prf,dirout, configData,copy.deepcopy(extended_list),None])
+            else:
+                job = pool.apply_async(strainrate2summary, [datafile, xaxis, prf,dirout, configData,copy.deepcopy(extended_list),numpy.squeeze(data[ii,:,:])])
+            ii+=1
             print(job)
             jobs.append(job)
 

@@ -28,6 +28,7 @@ import codecs
 import os
 import struct
 import json
+import mmap
 # This is the only numba dependency - we use it to vectorize the ibm2ieee
 # https://github.com/numba/numba/blob/master/LICENSE
 
@@ -384,18 +385,20 @@ def data_format(header, formats):
     return sample_type, BYTES
 
 
-    
 '''This script takes a SEGY flat file and turns it into processable chunks
 The headers become JSON objects
 It implements the Rev 2 standard from
 https://seg.org/Portals/0/SEG/News%20and%20Resources/Technical%20Standards/seg_y_rev2_0-mar2017.pdf
+
+FOR LOW MEMORY SITUATIONS
 '''
-def SEGYingest(segyfilename, outdir, overwrite=True):
-    directory_services.makedir(outdir)
+def ingest(segyfilename, outdir, overwrite=True, inMem=False):
     headerDir = os.path.join(outdir,'json')
-    directory_services.makedir(headerDir)
     tmpdir = os.path.join(outdir,'tmp')
-    directory_services.makedir(tmpdir)
+    if inMem==False:
+        directory_services.makedir(outdir)
+        directory_services.makedir(headerDir)
+        directory_services.makedir(tmpdir)
     
     
     # The 1-second blocks of data are memory mapped arrays...
@@ -426,6 +429,10 @@ def SEGYingest(segyfilename, outdir, overwrite=True):
     #print (json.dumps(header, sort_keys=True, indent=4, separators=(',', ': ')))
     xaxis = numpy.zeros((nx,1),dtype=numpy.double)
     ntOld=nt
+
+    data=numpy.zeros((1,1,1),dtype=numpy.double)
+    if inMem==True:
+        data=numpy.zeros((int(nt/prf),nx,prf),dtype=numpy.double)
 
     
     # read each trace
@@ -476,66 +483,71 @@ def SEGYingest(segyfilename, outdir, overwrite=True):
                 unixtime = int(datestamp.timestamp())
             except:
                 pass
-            bDone = True
-            nsecs = 0
-            for mapid in range(0,nt,prf):
-                if not os.path.exists(os.path.join(outdir,str(unixtime+nsecs)+'.npy')):
-                    bDone = False
-                nsecs += 1
-            if (bDone==True):
-                print('skipping ', segyfilename, ' as already ingested')
-                rawObj.close()
-                return
-            #---END OF RESTART----------------------------------------------
-            # first time through... so we write the full header
-            headerDir = os.path.join(headerDir,str(unixtime))
-            if not os.path.exists(headerDir):
-                os.makedirs(headerDir)
-            with open(os.path.join(headerDir,str(unixtime)+'.json'),'w') as outJson:
-                outJson.write(json.dumps(header, sort_keys=True, indent=4, separators=(',', ': ')))
-            # create a memap list (because the SEGY is the 'wrong' way around...
-            nsecs=0
-            for mapid in range(0, nt, prf):
-                fileout = os.path.join(tmpdir,str(unixtime+nsecs)+'.npy')
-                #fileout = os.path.join(outdir,str(unixtime+nsecs)+'.npy')
-                print(fileout)
-                memmapList.append(numpy.memmap(fileout, dtype=numpy.double, mode='w+', shape=(nx,prf)))
-                tmpList.append(fileout)
-                nsecs=nsecs+1
+            if inMem==False:
+                bDone = True
+                nsecs = 0
+                for mapid in range(0,nt,prf):
+                    if not os.path.exists(os.path.join(outdir,str(unixtime+nsecs)+'.npy')):
+                        bDone = False
+                    nsecs += 1
+                if (bDone==True):
+                    print('skipping ', segyfilename, ' as already ingested')
+                    rawObj.close()
+                    return 
+                #---END OF RESTART----------------------------------------------
+                # first time through... so we write the full header
+                headerDir = os.path.join(headerDir,str(unixtime))
+                if not os.path.exists(headerDir):
+                    os.makedirs(headerDir)
+                with open(os.path.join(headerDir,str(unixtime)+'.json'),'w') as outJson:
+                    outJson.write(json.dumps(header, sort_keys=True, indent=4, separators=(',', ': ')))
+                # create a memap list (because the SEGY is the 'wrong' way around...
+                nsecs=0
+                for mapid in range(0, nt, prf):
+                    fileout = os.path.join(tmpdir,str(unixtime+nsecs)+'.npy')
+                    #fileout = os.path.join(outdir,str(unixtime+nsecs)+'.npy')
+                    print(fileout)
+                    memmapList.append(numpy.memmap(fileout, dtype=numpy.double, mode='w+', shape=(nx,prf)))
+                    tmpList.append(fileout)
+                    nsecs=nsecs+1
         # Write this data to all the memmapped files
         nsecs = 0
         #print("AZURE-issue: ",nt,prf,trace.shape)
         for mapid in range(0,nt,prf):
-            (memmapList[nsecs])[a,0:prf] = trace[mapid:mapid+prf]
+            if inMem==True:
+                data[nsecs,a,0:prf]=trace[mapid:mapid+prf]
+            else:
+                (memmapList[nsecs])[a,0:prf] = trace[mapid:mapid+prf]
             nsecs = nsecs+1
         # Write out the header at the end - because the directory is not set until we know about unixtimestamp
         # We need pretty print, even though we are writing to a stream, because we expect human inspection of the headers.
-        with open(os.path.join(headerDir,str(a)+'.json'),'w') as outJson:
-            outJson.write(json.dumps(stdHeader, sort_keys=True, indent=4, separators=(',', ': ')))
-    for mapped in memmapList:        
-        mapped.flush()
-    # convert to numpy.save() so that we get metadata...
-    nsecs=0
-    print('Converting temporary files to permanent')
-    for mapped in memmapList:
-        fileout = os.path.join(outdir,str(unixtime+nsecs)+'.npy')
-        print(fileout)
-        numpy.save(fileout, numpy.array(mapped))
-        nsecs=nsecs+1
-        del mapped
-        # override lazy behaviour...
-        mapped = None
-    memmapList = None
-    # remove temporary files...
-    for filename in tmpList:
-        os.remove(filename)
-    # Assumption that the fibre depth points do not change over the measurement period
-    xaxisfilename = os.path.join(outdir,'measured_depth.npy')
-    if not os.path.exists(xaxisfilename):
-        numpy.save(xaxisfilename, xaxis)
+        if inMem==False:
+            with open(os.path.join(headerDir,str(a)+'.json'),'w') as outJson:
+                outJson.write(json.dumps(stdHeader, sort_keys=True, indent=4, separators=(',', ': ')))
+    if inMem==False:
+        for mapped in memmapList:
+            mapped.flush()
+        # convert to numpy.save() so that we get metadata...
+        nsecs=0
+        print('Converting temporary files to permanent')
+        for mapped in memmapList:
+            fileout = os.path.join(outdir,str(unixtime+nsecs)+'.npy')
+            print(fileout)
+            numpy.save(fileout, numpy.array(mapped))
+            nsecs=nsecs+1
+            del mapped
+            # override lazy behaviour...
+            mapped = None
+        memmapList = None
+        # remove temporary files...
+        for filename in tmpList:
+            os.remove(filename)
+        # Assumption that the fibre depth points do not change over the measurement period
+        xaxisfilename = os.path.join(outdir,'measured_depth.npy')
+        if not os.path.exists(xaxisfilename):
+            numpy.save(xaxisfilename, xaxis)
     rawObj.close()
-
-
+    return { "data" : data, "xaxis" : xaxis, "unixtime" : unixtime }
 
 # TEST CODE...
 def main():

@@ -80,7 +80,7 @@ def docs(command_list,commandJson):
 
                       This executes in one thread.
 '''
-def strainrate2summary(filename, xaxis, prf, dirout, commandJson, extended_list):
+def strainrate2summary(filename, xaxis, prf, dirout, commandJson, extended_list,data):
     # try to make a datestamp that WITSML could use...
     tokens = filename.split(os.sep)
     # the final token without its .npy is the unix timestamp
@@ -93,7 +93,8 @@ def strainrate2summary(filename, xaxis, prf, dirout, commandJson, extended_list)
     # Configure the hardware
     boxsize = commandJson.get('BOXSIZE', 500)
     extra_numpy.set_boxsize(boxsize)
-    data = numpy.load(filename)
+    if data is None:
+        data = numpy.load(filename)
     #print(data.shape)
     nx = data.shape[0]
     nt = data.shape[1]

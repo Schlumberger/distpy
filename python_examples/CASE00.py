@@ -1,5 +1,9 @@
 #..........ingest SEG-Y from an archived data store
-import distpy.ingesters.parallel_ingest_sgy
+import distpy.ingesters.parallel_ingest
+#...ingeseters
+import distpy.io_help.sgy as sgy
+import distpy.io_help.h5_helpers as h5
+
 #..........process each data chunk and store results as WITSML
 import distpy.controllers.parallel_strainrate_processing
 #..........ingest WITSML from an archived data store
@@ -9,8 +13,8 @@ import distpy.controllers.parallel_plots
 import os
 
 ### Windows example
-ARCHIVE_LOCATION = "D:\\Archive"
-PROJECT_DRIVE = "C:\\NotBackedUp"
+ARCHIVE_LOCATION = "D:/Archive"
+PROJECT_DRIVE = "C:/NotBackedUp"
 ### Linux example
 ARCHIVE_LOCATION = "/archive/projects/"
 PROJECT_DRIVE = "/scratch/username/"
@@ -31,13 +35,13 @@ def main():
     
 
     #STEP 1: ingest SEG-Y
-    distpy.ingesters.parallel_ingest_sgy.main(configSGYIngest)
+    distpy.ingesters.parallel_ingest.main(configSGYIngest,ingester=sgy)
     
 
     #STEP 2: process strain-rate to summary
     extended_command_sets = []
     #--- add any additional command sets here
-    #extended_command_sets.append('distpy_mine.calc.my_command_set')
+    #extended_command_sets.append('distpy_my.calc.my_command_set')
     distpy.controllers.parallel_strainrate_processing.main(configStrainrate2Summary, extended_list=extended_command_sets)
 
     #STEP 3: ingest WITSML FBE
