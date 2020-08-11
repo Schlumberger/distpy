@@ -663,3 +663,31 @@ def systemConfig(configOuterFile):
         PARALLEL = True
         NCPU = csData.get('ncpu',1)
     return inpath, outpath, configFile, PARALLEL, NCPU, BOX_SIZE, xaxisfile, taxisfile, prf
+
+
+
+'''
+ template : a generic approach to plain-text templating.
+
+            The template dictionary contains two terms, the filename - which is the
+            path to the template file, and the variables - a list of key-value pairs,
+            everywhere the string in the key occurs it is substituted by the string
+            in the value.
+
+            For example:
+                 "variables": { "var1" : "one", "var2" : "two2 }
+                 applied to the string
+                 "This string has a var2 in it"
+                 would give
+                 "This string has a two in it"
+'''
+def template(templateJSON={}):
+    if not templateJSON:
+        templateJSON = { "filename" : "../config_examples/strainrate2noiselog.json", "variables" : {}}
+    lines=[]
+    with open(template['filename'],'r') as f:
+        lines = f.readlines()
+    if 'variables' in template:
+        for line in lines:
+            [line.replace(key,val) for key,val in template['variables'].items() if key in line]
+    return lines
