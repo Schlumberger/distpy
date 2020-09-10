@@ -89,7 +89,7 @@ def main(configOuterFile, extended_list=[], dataPack = {}):
 
 
         jobs = []
-        i=0
+        ii=0
         for datafile in datafiles:
             if data is None:
                 job = pool.apply_async(strainrate2summary, [datafile, xaxis, prf,dirout, configData,copy.deepcopy(extended_list),None])

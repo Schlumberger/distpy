@@ -65,6 +65,7 @@ __status__ = 'Pre-alpha'
 # 1.28.0 dip_filter, makes use of the existing convolve 2D filtering
 # 1.29.0 Generic ingestion, and the in-memory option to support the CASE01 example
 # 1.30.0 Generic templating via io_help.io_helpers.template(templateJSON={})
-__version__ = '1.30.0'
+# 1.30.1 Fixed a bug in the parallel version introduced in 1.29.0
+__version__ = '1.30.1'
 
 

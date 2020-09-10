@@ -5,8 +5,6 @@ import os
 import numpy
 import datetime
 
-    
-from sklearn.cluster import KMeans
 
 import distpy.calc.agnostic as agnostic
 
@@ -291,6 +289,9 @@ def gather(data,prevstack):
  kmeans_clustering : kmeans clustering. Simplest use of KMeans.
 '''
 def kmeans_clustering(data, n_clusters=10):
+    # Make sure we only import scikit-learn.clusters here (for multiprocessing to work)
+    # and make sure that there is a null behaviour
+    from sklearn.cluster import KMeans
     cluster = KMeans(n_clusters=n_clusters).fit(data)
     return cluster.labels_
 
