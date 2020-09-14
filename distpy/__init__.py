@@ -66,6 +66,8 @@ __status__ = 'Pre-alpha'
 # 1.29.0 Generic ingestion, and the in-memory option to support the CASE01 example
 # 1.30.0 Generic templating via io_help.io_helpers.template(templateJSON={})
 # 1.30.1 Fixed a bug in the parallel version introduced in 1.29.0
-__version__ = '1.30.1'
+# 1.30.2 Incremented patch number due to the introduction of @classmethod
+__version__ = '1.30.2'
+
 
 
