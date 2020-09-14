@@ -118,7 +118,8 @@ class DataLoadCommand(object):
     def postcond(self):
         return []
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         return {}
 
     def isGPU(self):
@@ -156,7 +157,8 @@ class BasicCommand(object):
     def postcond(self):
         return []
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         return {}
 
     def isGPU(self):
@@ -178,7 +180,8 @@ class ToGPUCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Put the current result on the GPU and perform subsequent steps there. If no GPU is available, this has no effect."
         return docs
@@ -197,7 +200,8 @@ class FromGPUCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Put the current result on the CPU and perform subsequent steps there. If no GPU is available, this has no effect."
         return docs
@@ -220,7 +224,8 @@ class MacroCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._macro = jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Create a macro containing sub-commands"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['command_list'] }
@@ -245,7 +250,8 @@ class AbsCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the absolute value of the input"
         return docs
@@ -263,7 +269,8 @@ class AngleCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the angle of the complex input"
         return docs
@@ -281,7 +288,8 @@ class RescaleCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Rescale the data from 0 to 1. If an additional data set it suppied, the rescale uses that data for min() and max()"
         return docs
@@ -304,7 +312,8 @@ class SoftThresholdCommand(BasicCommand):
         self._direction = jsonArgs.get('direction','>')
         self._threshold = jsonArgs.get('threshold',0.0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Applies a soft threshold, clipping the values at the given threshold."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['direction','threshold'] }
@@ -324,7 +333,8 @@ class PeakBroadeningCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._window_length = jsonArgs.get('window_length',50)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Broadening of the local maxima, by extending them in time."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length'] }
@@ -347,7 +357,8 @@ class HardThresholdCommand(BasicCommand):
         self._threshold = jsonArgs.get('threshold',0.0)
         self._value     = jsonArgs.get('value',0.0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Applies a hard threshold, all values beyond the threshold are replaced with the supplied value."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['direction','threshold','value'] }
@@ -369,7 +380,8 @@ class UnwrapCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',-1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Unwrap angles in the selected axis direction using numpy.unwrap"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -391,7 +403,8 @@ class ConjCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the complex conjugate value of the input"
         return docs
@@ -409,7 +422,8 @@ class ApproxVlfCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="A weighted average focussed on the central trace, equivalent to a very low pass filter. The results approximate the very low frequency response in a robust way."
         return docs
@@ -432,7 +446,8 @@ class KerasCommand(BasicCommand):
         self._args = jsonArgs
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Load an existing keras model, and either use it for prediction or train-then-predict."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['filename','train'] }
@@ -455,7 +470,8 @@ class KMeansCommand(BasicCommand):
         self._args = jsonArgs
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Perform a KMeans clustering into a fixed number of clusters. Return the cluster number versus depth."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['n_clusters'] }
@@ -493,7 +509,8 @@ class KurtosisCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the kurtosis of the input using scipy.stats.kurtosis(). Use k statistics to eliminate bias and omit any NaNs."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -510,7 +527,8 @@ class SkewnessCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the skewness of the input using scipy.stats.skewn(). Eliminate bias and omit any NaNs."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -528,7 +546,8 @@ class MomentCommand(BasicCommand):
         self._axis = jsonArgs.get('axis',1)
         self._moment = jsonArgs.get('moment',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the nth moment of the input using scipy.stats.moment(). Omit any NaNs."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','moment'] }
@@ -544,7 +563,8 @@ class MeanCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the mean of the input using numpy.mean()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -563,7 +583,8 @@ class StdDevCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the standard deviation of the input using numpy.std()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -583,7 +604,8 @@ class HarmonicMeanCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the harmonic mean of the input using scipy.stats.hmean()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -599,7 +621,8 @@ class GeometricMeanCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the geometric mean of the input using scipy.stats.gmean()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -614,7 +637,8 @@ class RealCommand(BasicCommand):
     def __init__(self,command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Take the real value of the input"
         return docs
@@ -638,7 +662,8 @@ class AnalyticSignalCommand(BasicCommand):
         self._prf = jsonArgs.get('prf',10000.0)
         self._wavn = numpy.abs(jsonArgs['xaxis'][1]-jsonArgs['xaxis'][0])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Estimate the analytic signal using a locally filtered maximum likelihood method"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','freq','window_length'] }
@@ -664,7 +689,8 @@ class HashCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._ioffset = int(jsonArgs.get('offset',0))
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Creates a 64-bit integer hash at each depth using extra_numpy.hash(), reducing the data from 2D to 1D"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['offset'] }
@@ -690,7 +716,8 @@ class ButterCommand(BasicCommand):
         self._freq = jsonArgs.get('freq',200.0)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Setup a Butterworth filter using scipy.signal.butter() and apply it using scipy.signal.filtfilt()"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['order','type','padtype','prf','freq','axis'] }
@@ -714,7 +741,8 @@ class ArgmaxCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Index of the maximum value in each row or column."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -738,7 +766,8 @@ class GaussianCommand(BasicCommand):
         self._torder = jsonArgs.get('torder',5)
         self._mode = jsonArgs.get('mode', 'constant')
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Applies a 2D Gaussian blurring filter using signal.ndarray.gaussian_filter()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xsigma','tsigma','xorder','torder'] }
@@ -756,7 +785,8 @@ class SobelCommand(BasicCommand):
         self._axis = jsonArgs.get('axis',-1)
         self._mode = jsonArgs.get('mode','constant')
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Applies a Sobel edge detection filter using signal.ndarray.sobel()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','mode'] }
@@ -774,7 +804,8 @@ class ConvolveCommand(BasicCommand):
         self._coeffs = jsonArgs.get('coeffs',[[1,0,-1],[2,0,-2],[1,0,-1]])
         self._mode = jsonArgs.get('mode','constant')
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Convolves the supplied filter with the data."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['coeffs','mode'] }
@@ -792,7 +823,8 @@ class TXDipCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args=jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="time-space domain dip filter."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['velocity','bandwidth','shape'] }
@@ -819,7 +851,8 @@ class CorrelateCommand(BasicCommand):
         self._coeffs = jsonArgs.get('coeffs',[[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1]])
         self._mode = jsonArgs.get('mode','constant')
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Correlates the supplied filter with the data."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['coeffs','mode'] }
@@ -839,7 +872,8 @@ class MedianFilterCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._distance = jsonArgs.get('distance',3)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Applies a 2D square median filter using ndimage.median_filter()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['distance'] }
@@ -857,7 +891,8 @@ class SumCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Sums the data along the specified axis, reducing from 2D to 1D using numpy.sum()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -880,7 +915,8 @@ class RollCommand(BasicCommand):
         self._shift = jsonArgs.get('window_length',1)
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Rolls the data along the specified axis, using numpy.roll(). An array can be passed in through gather_uid"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','window_length'] }
@@ -921,7 +957,8 @@ class RunningMeanCommand(BasicCommand):
         self._N = jsonArgs.get('window_length',5)
         self._axis = jsonArgs.get('axis',0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="A 1D running mean averaging filter, using the extra_numpy.running_mean()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
@@ -942,7 +979,8 @@ class InterpCommand(BasicCommand):
         self._fp = jsonArgs.get('fp', None)
         self._axis = jsonArgs.get('axis',0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Interplation for downsampling."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xaxis','fp','axis'] }
@@ -963,7 +1001,8 @@ class CurveFitCommand(BasicCommand):
         self._initslope = jsonArgs.get('initSlopes',[-0.5])
         self._xaxis = jsonArgs.get('xaxis',None)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Curve fitting using scipy.optimize.curvefit()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['method','bounds','initSlopes','xaxis'] }
@@ -994,7 +1033,8 @@ class ClipCommand(BasicCommand):
             self._tmin=0
         self._fname = str(numpy.int(self._tmin))
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Clip the data so that all subsequent operations operate on a small window. If directory_out is specified the new axes will also be created in the storage directory"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xaxis','taxis','xmin','xmax','tmin','tmax','directory_out','double_ended'] }
@@ -1046,7 +1086,8 @@ class DiffCommand(BasicCommand):
         # previously was 'n'
         self._n = jsonArgs.get('window_length',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Simple differencing using the window_length as the offset."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
@@ -1074,7 +1115,8 @@ class GradientCommand(BasicCommand):
         self._edge_order = jsonArgs.get('edge_order',1)
         self._axis = jsonArgs.get('axis',0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Numercal gradient of the data via central differencing."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['edge_order','axis'] }
@@ -1105,7 +1147,8 @@ class DownsampleCommand(BasicCommand):
         self._xdir = jsonArgs.get('xsample',1)
         self._tdir = jsonArgs.get('tsample',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Downsampling to reduce the data size."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xsample','tsample'] }
@@ -1128,7 +1171,8 @@ class Peak2PeakCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._window_length = jsonArgs.get('window_length',200)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="The maximum peak-to-peak difference with the maximum and minimum separated by less than the defined window_length. This reduces the data from 2D (x,t) to a trace (x)."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length'] }
@@ -1147,7 +1191,8 @@ class CountPeaksCommand(BasicCommand):
         self._sta = jsonArgs.get('sta',50)
         self._lta = jsonArgs.get('lta',200)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Couting peaks in a signal using scipy.signal.find_peaks_cwt()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['sta','lta'] }
@@ -1166,7 +1211,8 @@ class MultiplyCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Elementwise multiply, the output data-type will be the same as that of the data entering in the in_uid. This data is multiplied by data provided in the gather_uids"
         #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
@@ -1187,7 +1233,8 @@ class AddCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Elementwise sum, the output data-type will be the same as that of the data entering in the in_uid."
         #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
@@ -1208,7 +1255,8 @@ class LinearTransformCommand(BasicCommand):
         self._m = jsonArgs.get('m', 1.0)
         self._c = jsonArgs.get('c', 0.0)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Provide two scalars m and c, linearly transform the data y = m*data + c"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['m','c'] }
@@ -1231,7 +1279,8 @@ class GatherCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._prevstack = jsonArgs.get('commands',[None])
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Gathers the data with all the data provided in the gather_uids to make one big matrix"
         return docs
@@ -1256,7 +1305,8 @@ class ExtractCommand(BasicCommand):
         self._idx = jsonArgs.get('index',0)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Extracts a single row or column as a separate dataset"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['index','axis'] }
@@ -1283,7 +1333,8 @@ class StaLtaCommand(BasicCommand):
         self._sta = jsonArgs.get('sta',50)
         self._lta = jsonArgs.get('lta',200)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Short-term average (STA) divided by long-term average (LTA). This transform highlights onset and so often forms part of an automated pick or edge-detection."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['sta','lta'] }
@@ -1303,7 +1354,8 @@ class WienerCommand(BasicCommand):
         self._tdir = jsonArgs.get('tdir',5)
         self._noisePower = jsonArgs.get('noisePower',None)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="2D Wiener filter. See scipy.signal.wiener."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xdir','tdir','noisePower'] }
@@ -1327,7 +1379,8 @@ class WriteNPYCommand(BasicCommand):
         self._taxis = jsonArgs.get('taxis',None)            
 
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Write the current state of the processed data to the npy format."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out'] }
@@ -1357,7 +1410,8 @@ class ReadNPYCommand(BasicCommand):
         self._dirname = jsonArgs.get('directory_out','NONE')
         self._fname = jsonArgs.get('filename','NONE')
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Load a npy format file."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out','filename'] }
@@ -1396,7 +1450,8 @@ class WriteWITSMLCommand(BasicCommand):
         return [directory_services.path_join(self._outdir,self._datedir+'.fbe')]
 
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Write out to the WITSML/FBE format, suitable for loading into viewers such as Techlog or Petrel."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['directory_out','xaxis','data_style','low_freq','high_freq','labels'] }
@@ -1431,7 +1486,8 @@ class RMSfromFFTCommand(BasicCommand):
             highf=-1
         self._i2 = int(highf)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Calculate the RMS energy between two frequencies."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['low_freq','high_freq'] }
@@ -1458,7 +1514,8 @@ class FFTCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Compute the Fast Fourier Transform (FFT) of the data along the requested axis."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -1484,7 +1541,8 @@ class IFFTCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._axis = jsonArgs.get('axis',1)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Compute the Inverse Fast Fourier Transform (IFFT) of the data along the requested axis."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
@@ -1508,7 +1566,8 @@ class DestripeCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Remove vertical stripes from the data using extra_numpy.destripe()."
         return docs
@@ -1526,7 +1585,8 @@ class UpCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Calculate the up-going waves using extra_numpy.up_wave(). Note that the data should be 2D FFTd before this command and are returned as complex values."
         return docs
@@ -1544,7 +1604,8 @@ class DownCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Calculate the down-going waves using extra_numpy.down_wave(). Note that the data should be 2D FFTd before this command and are returned as complex values."
         return docs
@@ -1563,7 +1624,8 @@ class VelocityMapCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Calculate the phase velocity at each pixel in a 2D FFT space."
         return docs
@@ -1585,7 +1647,8 @@ class VelocityMaskCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Construct a phase-velocity filter in 2D space. The input should be from the velocity_map command."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['min_velocity','max_velocity'] }
@@ -1606,7 +1669,8 @@ class BoundedSelectCommand(BasicCommand):
         super().__init__(command, jsonArgs)
         self._args = jsonArgs
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Return a masks within a pair of bounds on the data (e.g. selecting a cluster from k-means results)."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['min_val','max_val'] }
@@ -1643,7 +1707,8 @@ class MultipleCalcsCommand(BasicCommand):
             icount=icount+1
         self._funcName = jsonArgs.get('func','NONE')
 
-    def docs(self):
+    @classmethod
+    def docs(cls):
         docs={}
         docs['one_liner']="Perform multiple calculations using the extra_numpy.reduced_mem() system."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['low_freq','high_freq','func'] }
