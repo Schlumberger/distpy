@@ -125,6 +125,8 @@ def dot_graph(jsonArgs, command_list=None):
             color = 'color=red,style=filled,fontcolor=white'
             if concreteCommand.isGPU()==True:
                 color = 'color=green,style=filled,fontcolor=black'
+            if concreteCommand.isCommutative==True:
+                description = description+'*'
             #label = '[label=\"'+command['name']+ ' '+description+'\",'+color+']'
             label = '[label=\"'+command['name']+ '\",'+color+']'
             nodeList.append(command['name']+'_'+str(indx))
@@ -416,6 +418,12 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
     nt=data.shape[1]
     if tscale[0]==tscale[-1]:
         tscale=[0,nt]
+
+    # date stamp axes
+    dateaxis = False
+    substring = "date"
+    if substring in (axes[1]).lower():
+        dateaxis = True
         
     cscale=cmap
     #despiked = despike(data,3)
@@ -454,7 +462,7 @@ def thumbnail_plot(stem_name, fname, data, xscale=[-1,-1],tscale=[-1,-1],plt_for
         xv, yv = numpy.meshgrid(taxis2[:], xaxis[:])
         img = plt.contourf(xv,yv,data, NLEVELS,cmap=cscale)  # colormap,
         cbar = fig.colorbar(img)
-    if tscale[0]>1e+7:
+    if tscale[0]>1e+7 and dateaxis==True:
         # we have dates... so use dates
         # https://stackoverflow.com/questions/23139595/dates-in-the-xaxis-for-a-matplotlib-plot-with-imshow
         ax.set_xlim(t_lims[0],t_lims[1])

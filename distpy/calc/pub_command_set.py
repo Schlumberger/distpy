@@ -122,7 +122,15 @@ class DataLoadCommand(object):
     def docs(cls):
         return {}
 
+    # If the pattern for numpy/cupy agnostic coding has been used
+    # see https://github.com/Schlumberger/distpy/wiki/Dev-Notes-:-GPU
     def isGPU(self):
+        return False
+
+    # If this operation is like a linear filter so that in principle the
+    # ordering can be swapped - NOTE this does not check for large/small
+    # rounding error considerations.
+    def isCommutative(self):
         return False
     
     def execute(self):
@@ -162,6 +170,9 @@ class BasicCommand(object):
         return {}
 
     def isGPU(self):
+        return False
+
+    def isCommutative(self):
         return False
         
     def execute(self):
@@ -723,6 +734,10 @@ class ButterCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['order','type','padtype','prf','freq','axis'] }
         return docs
 
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
+
     def execute(self):
         Wn = self._freq/(self._prf*0.5)
         if self._axis == 0:
@@ -773,6 +788,10 @@ class GaussianCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['xsigma','tsigma','xorder','torder'] }
         return docs
 
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
+
     def execute(self):
         self._result = ndimage.gaussian_filter(self._previous.result(), [self._xdir, self._tdir], order=[self._xorder, self._torder],mode=self._mode)
 
@@ -791,6 +810,10 @@ class SobelCommand(BasicCommand):
         docs['one_liner']="Applies a Sobel edge detection filter using signal.ndarray.sobel()."
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis','mode'] }
         return docs
+
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
 
     def execute(self):
         self._result = ndimage.sobel(self._previous.result(),axis=self._axis, mode=self._mode)
@@ -812,6 +835,10 @@ class ConvolveCommand(BasicCommand):
         docs['args']['coeffs']['default'] = [[1,0,-1],[2,0,-2],[1,0,-1]] 
         return docs
 
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
+
     def execute(self):
         self._result = extra_numpy.convolve2D(self._previous.result(),self._coeffs, mode=self._mode)
 
@@ -832,6 +859,10 @@ class TXDipCommand(BasicCommand):
         docs['args']['bandwidth']['default'] = 0.1 
         docs['args']['shape']['default'] = [9,9] 
         return docs
+
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
 
     def execute(self):
         dx = numpy.abs(self._args['xaxis'][1]-self._args['xaxis'][0])
@@ -858,6 +889,10 @@ class CorrelateCommand(BasicCommand):
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['coeffs','mode'] }
         docs['args']['coeffs']['default'] = [[0,0,1],[0,1,0],[1,0,0],[0,1,0],[0,0,1]]
         return docs
+
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
 
     def execute(self):
         self._result = ndimage.correlate(self._previous.result(),self._coeffs, mode=self._mode)
@@ -1261,6 +1296,10 @@ class LinearTransformCommand(BasicCommand):
         docs['one_liner']="Provide two scalars m and c, linearly transform the data y = m*data + c"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['m','c'] }
         return docs
+
+    # This is linear filtering...
+    def isCommutative(self):
+        return True
 
     def isGPU(self):
         return True

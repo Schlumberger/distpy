@@ -291,9 +291,13 @@ def gather(data,prevstack):
 def kmeans_clustering(data, n_clusters=10):
     # Make sure we only import scikit-learn.clusters here (for multiprocessing to work)
     # and make sure that there is a null behaviour
-    from sklearn.cluster import KMeans
-    cluster = KMeans(n_clusters=n_clusters).fit(data)
-    return cluster.labels_
+    try:
+        from sklearn.cluster import KMeans
+        cluster = KMeans(n_clusters=n_clusters).fit(data)
+        return cluster.labels_
+    except ImportError:
+        print("Warning: sklearn.cluster.KMeans not found in your python stack, clustering cannot be performed")
+        return numpy.ones((data.shape[0]),dype=xp.int)
 
 '''
  interp - a wrapper around numpy's 1d interpolation
@@ -704,7 +708,7 @@ def destripe(localData):
     wavn = xp.linspace(0,1.0/(2*dx),xp.int(nx/2))
     wavenumber = xp.zeros((nx,1),dtype=xp.double)
     wavenumber[0:xp.int(nx/2)]=xp.reshape(wavn,(xp.int(nx/2),1))
-    wavenumber[-xp.int(nx/2):]=numpy.reshape(xp.flipud(wavn),(xp.int(nx/2),1))
+    wavenumber[-xp.int(nx/2):]=xp.reshape(xp.flipud(wavn),(xp.int(nx/2),1))
     freqImage = xp.reshape(xp.tile(frequency,(nx,1)),(nx,nt))
     wavnImage = xp.reshape(xp.tile(wavenumber,(1,nt)),(nx,nt))
     #Rx = (freqImage*freqImage)/((freqImage*freqImage)+(wavnImage*wavnImage)+TOLERANCE)
