@@ -96,9 +96,7 @@ def setup_package():
               'matplotlib',
               'h5py',
               'pandas',
-              'scikit-learn',
-              'keras',
-              'tensorflow'
+              'scikit-learn'
               ],
           zip_safe = False
            )
