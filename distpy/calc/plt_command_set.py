@@ -34,7 +34,8 @@ class ThumbnailCommand(BasicCommand):
         self._dirname = jsonArgs.get('directory_out','NONE')
         self._fname = jsonArgs.get('date_dir','NONE')
         if "xaxis" in jsonArgs:
-            self._xaxis = [jsonArgs['xaxis'][0],jsonArgs['xaxis'][-1]]
+            xaxis = jsonArgs['xaxis'].flatten()
+            self._xaxis = [xaxis[0],xaxis[-1]]
             self._taxis = [0,jsonArgs['nt']/jsonArgs['prf']]
         else:
             self._xaxis = [0,1]
