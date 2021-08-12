@@ -1311,12 +1311,13 @@ class MultiplyCommand(BasicCommand):
     def __init__(self,command,jsonArgs):
         super().__init__(command, jsonArgs)
         self._prevstack = jsonArgs.get('commands',[None])
+        self._axis = jsonArgs.get('axis',None)
 
     @classmethod
     def docs(cls):
         docs={}
         docs['one_liner']="Elementwise multiply, the output data-type will be the same as that of the data entering in the in_uid. This data is multiplied by data provided in the gather_uids"
-        #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['window_length','axis'] }
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
 
     def isGPU(self):
@@ -1327,6 +1328,15 @@ class MultiplyCommand(BasicCommand):
             data = (self._prevstack[0]).result()
             if data.shape==self._previous.result().shape:
                 self._result = self._previous.result()*data
+            else:
+                if not self._axis is None:
+                    if self._axis == 1:
+                        self._result = numpy.einsum('ij,j->ij',self._previous.result(),data.flatten())
+                    else:
+                        data = numpy.einsum('ij,i->ij',self._previous.result(),data.flatten())
+                else:
+                    self._result = self._previous.result() # null behaviour
+                
 '''
  AddCommand : elementwise sum
 '''

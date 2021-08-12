@@ -72,7 +72,8 @@ __status__ = 'Pre-alpha'
 # 1.32.0 "copy" command - for situations where inplace overwrite doesn't make sense, and "multiply" to handle 
 #                         Einstein summation notation for multiplying an array by a vector
 #        "virtual_cmp" command - for interferometry applications
-__version__ = '1.32.0'
+# 1.32.1 Bug fix to MultiplyCommand so that multiplying by an array works as expected.
+__version__ = '1.32.1'
 
 
 
