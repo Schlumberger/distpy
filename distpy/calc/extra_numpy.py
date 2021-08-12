@@ -756,6 +756,21 @@ def hash(data,ioffset=0):
     return outData
 
 '''
+ virtual_cmp : a common midpoint gather produced using virtual sources
+'''
+def virtual_cmp(data,axis=0):
+    xp = GPU_CPU.get_numpy(data)
+    data2 = xp.flip(data,axis=axis)
+    return (data*xp.conj(data2))
+
+'''
+ deconvolve : assumes you are in the Fourier domain and stay there
+'''
+def deconvolve(data,decon,tolerance=1e-06):
+    xp = GPU_CPU.get_numpy(data)
+    return (data*xp.conj(decon))/(decon*xp.conj(decon)+tolerance)
+
+'''
   keras_model : load a saved keras model for evaluation or further training
 '''
 def keras_model(data,kerasfile,Y=None,train=None):

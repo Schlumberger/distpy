@@ -1,4 +1,4 @@
-# (C) 2020, Schlumberger. Refer to LICENSE
+# (C) 2021, Schlumberger. Refer to LICENSE
 
 #
 # witsmlfbe : handles reading and writing of the WITSML FBE format
@@ -13,6 +13,16 @@ import datetime
 from os import listdir
 from os.path import isfile, join
 from xml.dom import minidom
+# Adding Avro support
+from collections import defaultdict
+from rec_avro import to_rec_avro_destructive, from_rec_avro_destructive, rec_avro_schema
+
+#import avro.schema
+#from avro.datafile import DataFileReader, DataFileWriter
+#from avro.io import DatumReader, DatumWriter
+# This comes in as WriteAvro() and ReadAvro(), the data conversions are not necessarily efficient
+# in this basic implementation
+# see https://avro.apache.org/docs/current/gettingstartedpython.html
 
 ##############################################################################
 # CONFIGURATION
@@ -618,6 +628,52 @@ def writeFBE(pathstem,fileout, root):
     with open(os.path.join(pathstem,fileout+'.fbe'), "w") as f:
         f.write(xmlstr)
 
+##
+# https://stackoverflow.com/questions/7684333/converting-xml-to-dictionary-using-elementtree
+# provdes a conversion of ElementTree to dict based on
+# https://www.xml.com/pub/a/2006/05/31/converting-between-xml-and-json.html
+##
+def etree_to_dict(t):
+    d = {t.tag: {} if t.attrib else None}
+    children = list(t)
+    if children:
+        dd = defaultdict(list)
+        for dc in map(etree_to_dict, children):
+            for k, v in dc.items():
+                dd[k].append(v)
+        d = {t.tag: {k: v[0] if len(v) == 1 else v
+                     for k, v in dd.items()}}
+    if t.attrib:
+        d[t.tag].update(('@' + k, v)
+                        for k, v in t.attrib.items())
+    if t.text:
+        text = t.text.strip()
+        if children or t.attrib:
+            if text:
+              d[t.tag]['#text'] = text
+        else:
+            d[t.tag] = text
+    return d
+
+#
+# https://stackoverflow.com/questions/22382636/how-to-convert-json-string-to-avro-in-python/55444481#55444481
+# provides the example use of rec-avro
+def dict_to_avro(dict_in, f_out):
+    # For efficiency, to_rec_avro_destructive() destroys rec, and reuses it's
+    # data structures to construct avro_objects
+    avro_objects = (to_rec_avro_destructive(rec) for rec in dict_in)
+
+    # store records in avro
+    with open('json_in_avro.avro', 'wb') as f_out:
+        writer(f_out, schema.parse_schema(rec_avro_schema()), avro_objects)
+
+def avro_to_dict(filename):
+    #load records from avro
+    with open('json_in_avro.avro', 'rb') as f_in:
+        # For efficiency, from_rec_avro_destructive(rec) destroys rec, and
+        # reuses it's data structures to construct it's output
+        loaded_json = [from_rec_avro_destructive(rec) for rec in reader(f_in)]
+    return loaded_json
 
 '''
  recursive_elem_counter : loops over XML recursively accumulating data locations
@@ -725,83 +781,7 @@ def averageFBE(datafiles, basedir, dirout, dirout_std):
         xidx=0
         recursive_elem_egest(root, stdOut, xidx)
         writeFBE(dirout_std,fname[:-4], root)
-'''
- readFBE : read a directory of *.fbe files and turn them into a directory containing a depth axis, a time axis and a 2D array of values
-           - a format that is much easier to work with in reprocessing and interpretation flows.
-
-def readFBE(datafiles,dirout):
-    DEPTH = 'DEPTH'
-    TIME = 'TIME'
-    TMP = 'tmp'
-    
-    # The number of time samples
-    nt = len(datafiles)
-
-    
-    # First file gives us nx and the list of output files
-    filename = datafiles[0]
-    tree = ET.parse(filename)
-    root = tree.getroot()
-    list_of_files = []
-    depth_axis_values  =[]
-    time_axis_values = []
-    recursive_elem_counter(root, list_of_files, depth_axis_values)
-    nx = len(depth_axis_values)
-
-    # create memmap files - similar to the way we reprocess SGY to 1-second data chunks.
-    memmapList = []
-    tmpList = []
-    tmpdir = os.path.join(dirout,TMP)
-    if not os.path.exists(tmpdir):
-        os.makedirs(tmpdir)
-        
-    for fname in list_of_files:
-        if not fname==DEPTH:
-            fileout = os.path.join(tmpdir, fname)
-            memmapList.append(numpy.memmap(fileout, dtype=numpy.double, mode='w+', shape=(nx,nt)))
-            tmpList.append(fileout)
-    for mapped in memmapList:
-        mapped.flush()
-        
-    # loop and write...
-    idx = 0
-    for fname in datafiles:
-        tree = ET.parse(fname)
-        root = tree.getroot()
-        xidx=0
-        recursive_elem_ingest(root, memmapList, idx, xidx, time_axis_values)
-        idx = idx + 1
-
-    # create time and depth axis as arrays
-    time_axis = numpy.asarray(time_axis_values, dtype=numpy.double)
-    depth_axis = numpy.asarray(depth_axis_values, dtype=numpy.double)
-
-    for mapped in memmapList:
-        mapped.flush()
-
-    print("max values in memmaps")
-    for a in range(len(memmapList)):
-        print(numpy.max(memmapList[a]))
-        
-    print('Converting temporary files to permanent')
-    for a in range(len(memmapList)):
-        fileout = os.path.join(dirout,list_of_files[a+1]+'.npy')
-        print(fileout)
-        numpy.save(fileout, numpy.array(memmapList[a]))
-        del mapped
-        # override lazy behaviour...
-        mapped = None
-    memmapList = None
-    # remove temporary files...
-    for filename in tmpList:
-        os.remove(filename)
-    # Assumption that the fibre depth points do not change over the measurement period
-    xaxisfilename = os.path.join(dirout,'measured_depth.npy')
-    if not os.path.exists(xaxisfilename):
-        numpy.save(xaxisfilename, depth_axis)
-    taxisfilename = os.path.join(dirout,'time.npy')
-    numpy.save(taxisfilename, time_axis)
-'''       
+      
 '''
  readFBE : read a directory of *.fbe files and turn them into a directory containing a depth axis, a time axis and a 2D array of values
            - a format that is much easier to work with in reprocessing and interpretation flows.

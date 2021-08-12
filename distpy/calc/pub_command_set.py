@@ -11,6 +11,7 @@ import os
 from scipy import signal
 from scipy import ndimage
 from scipy import stats
+import copy
 from scipy.optimize import curve_fit
 from scipy.signal import butter, lfilter, freqz
 from scipy.stats import kurtosis, hmean, gmean, skew, moment
@@ -92,7 +93,8 @@ universal_arglist = {
     "high_freq" :     {DEFAULT : None,  DESC : "A list of high frequency values for band-pass windows in Hz"},
     "noisePower" :    {DEFAULT : None,  DESC : "The noise power in the Wiener filter"},      
     "format" :        {DEFAULT : "png", DESC : "The format of the picture output"},
-    "clip_level" :    {DEFAULT : 1.0,   DESC : "The number of standard devaitions about the mean for plotting thumbnails"}
+    "clip_level" :    {DEFAULT : 1.0,   DESC : "The number of standard devaitions about the mean for plotting thumbnails"},
+    "tolerance" :     {DEFAULT : 1.0e-6, DESC : "A small tolerance to avoid numerical divide-by-zero"}
     }
 
     
@@ -136,6 +138,12 @@ class DataLoadCommand(object):
     def execute(self):
         pass
 
+    # This can be overridden with a specific execution that
+    # ASSERTS the particular behaviour expected
+    def unit_test(self):
+        self.execute()
+        assert(True),"Default execution failure"
+
     def result(self):
         return self._data
 
@@ -178,7 +186,12 @@ class BasicCommand(object):
     def execute(self):
         self._result = self._previous.result()
         
-        
+    # This can be overridden with a specific execution that
+    # ASSERTS the particular behaviour expected
+    def unit_test(self):
+        self.execute()
+        assert(True),"Default execution failure"
+      
     def result(self):
         return self._result
 
@@ -202,6 +215,7 @@ class ToGPUCommand(BasicCommand):
     
     def execute(self):
         self._result = extra_numpy.to_gpu(self._previous.result())
+
 
 '''
  FromGPUCommand : Return from GPU
@@ -291,6 +305,32 @@ class AngleCommand(BasicCommand):
 
     def execute(self):
         self._result = extra_numpy.agnostic_angle(self._previous.result())
+
+'''
+ CopyCommand : passes on a copy of the current data
+               To minimize memory footprint we inplace overwrite
+               by default as often as possible.
+               Having an explicity copy step allows data to be duplicated
+               when inplace overwrite doesn't make sense.
+'''
+class CopyCommand(BasicCommand):
+    def __init__(self,command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._prevstack = jsonArgs.get('commands',[None])
+
+    @classmethod
+    def docs(cls):
+        docs={}
+        docs['one_liner']="Copy the current data block.To minimize memory footprint we inplace overwrite by default as often as possible. Having an explicity copy step allows data to be duplicated when inplace overwrite doesn't make sense. "
+        return docs
+
+    def isGPU(self):
+        return False
+
+    def execute(self):
+        self._result = copy.deepcopy(self._previous.result())
+
+
 '''
  RescaleCommand : rescales the data from 0 to 1
 '''
@@ -1239,6 +1279,32 @@ class CountPeaksCommand(BasicCommand):
 
 
 '''
+ DeconvolveCommand : deconvolves the data from gather_uids from the data. assumes we are in the Fourier domain
+'''
+class DeconvolveCommand(BasicCommand):
+    def __init__(self,command,jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._tolerance = jsonArgs.get('tolerance',1.0e-6)
+        self._prevstack = jsonArgs.get('commands',[None])
+
+    @classmethod
+    def docs(cls):
+        docs={}
+        docs['one_liner']="deconvolves the data from gather_uids from the data in the in_uid. Assumes we are in the Fourier domain"
+        #docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['tolerance'] }
+        return docs
+
+    def isGPU(self):
+        return True
+
+    def execute(self):        
+        if self._prevstack[0]!=None:
+            data = (self._prevstack[0]).result()
+            self._result = extra_numpy.deconvolve(self._previous.result(),data,tolerance=self._tolerance)
+        else:
+            self._result = self._previous.result() # null behaviour
+
+'''
  MultiplyCommand : elementwise multiply
 '''
 class MultiplyCommand(BasicCommand):
@@ -1256,10 +1322,11 @@ class MultiplyCommand(BasicCommand):
     def isGPU(self):
         return True
 
-    def execute(self):
-        
+    def execute(self):        
         if self._prevstack[0]!=None:
-            self._result = self._previous.result()*((self._prevstack[0]).result())
+            data = (self._prevstack[0]).result()
+            if data.shape==self._previous.result().shape:
+                self._result = self._previous.result()*data
 '''
  AddCommand : elementwise sum
 '''
@@ -1347,7 +1414,7 @@ class ExtractCommand(BasicCommand):
     @classmethod
     def docs(cls):
         docs={}
-        docs['one_liner']="Extracts a single row or column as a separate dataset"
+        docs['one_liner']="Extracts a single row (axis=0) or column (axis=1) at the specified index, as a separate dataset"
         docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['index','axis'] }
         docs['args']['axis']['default'] = 1
         return docs
@@ -1604,18 +1671,24 @@ class IFFTCommand(BasicCommand):
 class DestripeCommand(BasicCommand):
     def __init__(self, command, jsonArgs):
         super().__init__(command, jsonArgs)
+        self._axis = jsonArgs.get('axis',0)
 
     @classmethod
     def docs(cls):
         docs={}
         docs['one_liner']="Remove vertical stripes from the data using extra_numpy.destripe()."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
         return docs
 
     def isGPU(self):
         return True
     
     def execute(self):
-        self._result = extra_numpy.destripe(self._previous.result())
+        if self._axis==0:
+            self._result = extra_numpy.destripe(self._previous.result())
+        else:
+            self._result = extra_numpy.destripe(self._previous.result().transpose()).transpose()
+            
 
 '''
  UpCommand : Calculate the up-going waves using extra_numpy.up_wave()
@@ -1722,6 +1795,26 @@ class BoundedSelectCommand(BasicCommand):
         self._result = extra_numpy.bounded_select(velmap,minv,maxv)
 
 '''
+ CMPCommand : return a virtual source-based common midpoint gather
+'''
+class CMPCommand(BasicCommand):
+    def __init__(self, command, jsonArgs):
+        super().__init__(command, jsonArgs)
+        self._args = jsonArgs
+
+    @classmethod
+    def docs(cls):
+        docs={}
+        docs['one_liner']="Returns a common midpoint gather based on virtual sources."
+        docs['args'] = { a_key: universal_arglist[a_key] for a_key in ['axis'] }
+        return docs
+
+    def execute(self):
+        axis = self._args.get('axis',0)
+        self._result = extra_numpy.virtual_cmp(self._previous.result(),axis=axis)
+
+
+'''
  MultipleCalcsCommand : allows multiple calculations to be made using the reduced_mem form.  
 '''
 class MultipleCalcsCommand(BasicCommand):
@@ -1782,9 +1875,11 @@ def KnownCommands(knownList):
     knownList['clip']           = ClipCommand
     knownList['conj']           = ConjCommand
     knownList['convolve']       = ConvolveCommand
+    knownList['copy']           = CopyCommand
     knownList['correlate']      = CorrelateCommand
     knownList['count_peaks']    = CountPeaksCommand
     knownList['data_load']      = ReadNPYCommand
+    knownList['deconvolve']     = DeconvolveCommand
     knownList['destripe']       = DestripeCommand
     knownList['diff']           = DiffCommand
     knownList['downsample']     = DownsampleCommand
@@ -1826,6 +1921,7 @@ def KnownCommands(knownList):
     knownList['up_wave']        = UpCommand
     knownList['velocity_map']   = VelocityMapCommand
     knownList['velocity_mask']  = VelocityMaskCommand
+    knownList['virtual_cmp']    = CMPCommand
     knownList['wiener']         = WienerCommand
     knownList['write_npy']      = WriteNPYCommand
     knownList['write_witsml']   = WriteWITSMLCommand

@@ -69,7 +69,10 @@ __status__ = 'Pre-alpha'
 # 1.30.2 Incremented patch number due to the introduction of @classmethod
 # 1.31.0 Introduced isCommutative to the commands
 # 1.31.1 removed keras and tensorflow requirements - now they are optional
-__version__ = '1.31.1'
+# 1.32.0 "copy" command - for situations where inplace overwrite doesn't make sense, and "multiply" to handle 
+#                         Einstein summation notation for multiplying an array by a vector
+#        "virtual_cmp" command - for interferometry applications
+__version__ = '1.32.0'
 
 
 
