@@ -15,7 +15,7 @@ from os.path import isfile, join
 from xml.dom import minidom
 # Adding Avro support
 from collections import defaultdict
-from rec_avro import to_rec_avro_destructive, from_rec_avro_destructive, rec_avro_schema
+#from rec_avro import to_rec_avro_destructive, from_rec_avro_destructive, rec_avro_schema
 
 #import avro.schema
 #from avro.datafile import DataFileReader, DataFileWriter
@@ -658,22 +658,22 @@ def etree_to_dict(t):
 #
 # https://stackoverflow.com/questions/22382636/how-to-convert-json-string-to-avro-in-python/55444481#55444481
 # provides the example use of rec-avro
-def dict_to_avro(dict_in, f_out):
-    # For efficiency, to_rec_avro_destructive() destroys rec, and reuses it's
-    # data structures to construct avro_objects
-    avro_objects = (to_rec_avro_destructive(rec) for rec in dict_in)
-
-    # store records in avro
-    with open('json_in_avro.avro', 'wb') as f_out:
-        writer(f_out, schema.parse_schema(rec_avro_schema()), avro_objects)
-
-def avro_to_dict(filename):
-    #load records from avro
-    with open('json_in_avro.avro', 'rb') as f_in:
-        # For efficiency, from_rec_avro_destructive(rec) destroys rec, and
-        # reuses it's data structures to construct it's output
-        loaded_json = [from_rec_avro_destructive(rec) for rec in reader(f_in)]
-    return loaded_json
+#def dict_to_avro(dict_in, f_out):
+#    # For efficiency, to_rec_avro_destructive() destroys rec, and reuses it's
+#    # data structures to construct avro_objects
+#    avro_objects = (to_rec_avro_destructive(rec) for rec in dict_in)
+#
+#    # store records in avro
+#    with open('json_in_avro.avro', 'wb') as f_out:
+#        writer(f_out, schema.parse_schema(rec_avro_schema()), avro_objects)
+#
+#def avro_to_dict(filename):
+#    #load records from avro
+#    with open('json_in_avro.avro', 'rb') as f_in:
+#        # For efficiency, from_rec_avro_destructive(rec) destroys rec, and
+#        # reuses it's data structures to construct it's output
+#        loaded_json = [from_rec_avro_destructive(rec) for rec in reader(f_in)]
+#    return loaded_json
 
 '''
  recursive_elem_counter : loops over XML recursively accumulating data locations
