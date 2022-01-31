@@ -10,7 +10,7 @@ import re
 import pandas
 from datetime import datetime as dtime
 try:
-    from . import wistmlfbe
+    from . import witsmlfbe
 except:
     import distpy.io_help.witsmlfbe as witsmlfbe
 import os
