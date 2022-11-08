@@ -15,7 +15,7 @@ from os.path import isfile, join
 from xml.dom import minidom
 # Adding Avro support
 from collections import defaultdict
-#from rec_avro import to_rec_avro_destructive, from_rec_avro_destructive, rec_avro_schema
+from rec_avro import to_rec_avro_destructive, from_rec_avro_destructive, rec_avro_schema
 
 #import avro.schema
 #from avro.datafile import DataFileReader, DataFileWriter
@@ -658,22 +658,22 @@ def etree_to_dict(t):
 #
 # https://stackoverflow.com/questions/22382636/how-to-convert-json-string-to-avro-in-python/55444481#55444481
 # provides the example use of rec-avro
-#def dict_to_avro(dict_in, f_out):
-#    # For efficiency, to_rec_avro_destructive() destroys rec, and reuses it's
-#    # data structures to construct avro_objects
-#    avro_objects = (to_rec_avro_destructive(rec) for rec in dict_in)
-#
-#    # store records in avro
-#    with open('json_in_avro.avro', 'wb') as f_out:
-#        writer(f_out, schema.parse_schema(rec_avro_schema()), avro_objects)
-#
-#def avro_to_dict(filename):
-#    #load records from avro
-#    with open('json_in_avro.avro', 'rb') as f_in:
-#        # For efficiency, from_rec_avro_destructive(rec) destroys rec, and
-#        # reuses it's data structures to construct it's output
-#        loaded_json = [from_rec_avro_destructive(rec) for rec in reader(f_in)]
-#    return loaded_json
+def dict_to_avro(dict_in, f_out):
+    # For efficiency, to_rec_avro_destructive() destroys rec, and reuses it's
+    # data structures to construct avro_objects
+    avro_objects = (to_rec_avro_destructive(rec) for rec in dict_in)
+
+    # store records in avro
+    with open('json_in_avro.avro', 'wb') as f_out:
+        writer(f_out, schema.parse_schema(rec_avro_schema()), avro_objects)
+
+def avro_to_dict(filename):
+    #load records from avro
+    with open('json_in_avro.avro', 'rb') as f_in:
+        # For efficiency, from_rec_avro_destructive(rec) destroys rec, and
+        # reuses it's data structures to construct it's output
+        loaded_json = [from_rec_avro_destructive(rec) for rec in reader(f_in)]
+    return loaded_json
 
 '''
  recursive_elem_counter : loops over XML recursively accumulating data locations
@@ -702,11 +702,12 @@ def recursive_elem_ingest(elem, list_of_memmaps, idx, xidx, time_axis):
                 list_of_memmaps[a][xidx,idx]=fvalues[a+1]
             xidx=xidx+1
         if subelem.tag==CREATIONDATE_TAG:
-            if subelem.txt[-1]=="Z":
-                value = datetime.datetime.strptime(subelem.text,"%Y-%m-%dT%H:%M:%S%z")
+            if subelem.text[-1]=="Z":
+                value = datetime.datetime.strptime(subelem.text,"%Y-%m-%dT%H:%M:%S.%fZ")
+                time_axis.append(value.timestamp())
             else:
                 value = datetime.datetime.strptime(subelem.text,"%Y-%m-%dT%H:%M:%S+00:00")
-            time_axis.append(value.timestamp())
+                time_axis.append(value.timestamp())
         recursive_elem_ingest(subelem, list_of_memmaps, idx, xidx, time_axis)   
 
 '''
@@ -793,6 +794,7 @@ def averageFBE(datafiles, basedir, dirout, dirout_std):
 '''
 def readFBE(datafiles,dirout,timestamp):
     DEPTH = 'DEPTH'
+    LENGTH = 'LENGTH'
     TIME = 'TIME'
     TMP = 'tmp'
     
@@ -818,7 +820,7 @@ def readFBE(datafiles,dirout,timestamp):
         os.makedirs(tmpdir)
         
     for fname in list_of_files:
-        if not fname==DEPTH:
+        if not fname==DEPTH and not fname==LENGTH:
             filefolder = os.path.join(tmpdir,fname)
             if not os.path.exists(filefolder):
                 os.makedirs(filefolder)
@@ -841,6 +843,10 @@ def readFBE(datafiles,dirout,timestamp):
     time_axis = numpy.asarray(time_axis_values, dtype=numpy.double)
     depth_axis = numpy.asarray(depth_axis_values, dtype=numpy.double)
 
+    # make sure there is a timestamp
+    if len(time_axis)>0:
+        timestamp = str(int(time_axis[0]))
+
     for mapped in memmapList:
         mapped.flush()
 
@@ -853,6 +859,7 @@ def readFBE(datafiles,dirout,timestamp):
         dir_final = os.path.join(dirout,list_of_files[a+1])
         if not os.path.exists(dir_final):
             os.makedirs(dir_final)
+
         fileout = os.path.join(dirout,list_of_files[a+1],timestamp+'.npy')
         print(fileout)
         numpy.save(fileout, numpy.array(memmapList[a]))
@@ -865,7 +872,7 @@ def readFBE(datafiles,dirout,timestamp):
         os.remove(filename)
     # Assumption that the fibre depth points do not change over the measurement period
     for fname in list_of_files:
-        if not fname==DEPTH:
+        if not fname==DEPTH and not fname==LENGTH:
             xaxisfilename = os.path.join(dirout,fname,'measured_depth.npy')
             if not os.path.exists(xaxisfilename):
                 numpy.save(xaxisfilename, depth_axis)

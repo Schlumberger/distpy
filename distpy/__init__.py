@@ -74,7 +74,8 @@ __status__ = 'Pre-alpha'
 #        "virtual_cmp" command - for interferometry applications
 # 1.32.1 Bug fix to MultiplyCommand so that multiplying by an array works as expected.
 # 1.32.2 Bug fixes to witsml reader.
-__version__ = '1.32.2'
+# 1.32.3 Bug fixes to support multiple DTS formats.
+__version__ = '1.32.3'
 
 
 

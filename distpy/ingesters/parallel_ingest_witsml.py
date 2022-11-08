@@ -16,6 +16,7 @@ import distpy.io_help.io_helpers as io_helpers
 import distpy.io_help.directory_services as ds
 import multiprocessing
 
+
 SUFFIX = ['fbe','dts','xml','witsml']
 
 '''
@@ -29,8 +30,9 @@ def readFBEController(dirin,dirout, repackage_size):
     for root, dirs, files in os.walk(dirin):
         for datafile in files:
             tokens = datafile.split('.')
+            suffix_length=len(tokens[-1])
             if tokens[-1] in SUFFIX:
-                prefixes.append(datafile[:-4])
+                prefixes.append(datafile[:-(suffix_length+1)])
                 datafiles.append(os.path.join(root,datafile))
     # alphanumeric sorting is assumed to work...
     # a more detail-oriented approach would extract all the unixtime stamps in key-value pairs and sort on those.
