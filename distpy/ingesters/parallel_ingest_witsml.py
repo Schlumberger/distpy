@@ -26,7 +26,7 @@ def readFBEController(dirin,dirout, repackage_size):
     prefixes = []
     for root, dirs, files in os.walk(dirin):
         for datafile in files:
-            if datafile[-3:]=='fbe':
+            if datafile[-3:]=='fbe' or datafile[-3:]=='dts':
                 prefixes.append(datafile[:-4])
                 datafiles.append(os.path.join(root,datafile))
     # alphanumeric sorting is assumed to work...
