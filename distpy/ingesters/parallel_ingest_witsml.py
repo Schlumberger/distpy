@@ -16,6 +16,8 @@ import distpy.io_help.io_helpers as io_helpers
 import distpy.io_help.directory_services as ds
 import multiprocessing
 
+SUFFIX = ['fbe','dts','xml']
+
 '''
  readFBEController : dependencies are captured here to keep the main() as
                      generic as possible. In the future refactoring might
@@ -26,7 +28,7 @@ def readFBEController(dirin,dirout, repackage_size):
     prefixes = []
     for root, dirs, files in os.walk(dirin):
         for datafile in files:
-            if datafile[-3:]=='fbe' or datafile[-3:]=='dts':
+            if datafile[-3:] in SUFFIX:
                 prefixes.append(datafile[:-4])
                 datafiles.append(os.path.join(root,datafile))
     # alphanumeric sorting is assumed to work...
