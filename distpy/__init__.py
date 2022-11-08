@@ -73,7 +73,8 @@ __status__ = 'Pre-alpha'
 #                         Einstein summation notation for multiplying an array by a vector
 #        "virtual_cmp" command - for interferometry applications
 # 1.32.1 Bug fix to MultiplyCommand so that multiplying by an array works as expected.
-__version__ = '1.32.1'
+# 1.32.2 Bug fixes to witsml reader.
+__version__ = '1.32.2'
 
 
 
