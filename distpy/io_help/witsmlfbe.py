@@ -702,7 +702,10 @@ def recursive_elem_ingest(elem, list_of_memmaps, idx, xidx, time_axis):
                 list_of_memmaps[a][xidx,idx]=fvalues[a+1]
             xidx=xidx+1
         if subelem.tag==CREATIONDATE_TAG:
-            value = datetime.datetime.strptime(subelem.text,"%Y-%m-%dT%H:%M:%S+00:00")
+            if subelem.txt[-1]=="Z":
+                value = datetime.datetime.strptime(subelem.text,"%Y-%m-%dT%H:%M:%S%z")
+            else:
+                value = datetime.datetime.strptime(subelem.text,"%Y-%m-%dT%H:%M:%S+00:00")
             time_axis.append(value.timestamp())
         recursive_elem_ingest(subelem, list_of_memmaps, idx, xidx, time_axis)   
 
