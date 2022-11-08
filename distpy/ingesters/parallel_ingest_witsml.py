@@ -16,7 +16,7 @@ import distpy.io_help.io_helpers as io_helpers
 import distpy.io_help.directory_services as ds
 import multiprocessing
 
-SUFFIX = ['fbe','dts','xml']
+SUFFIX = ['fbe','dts','xml','witsml']
 
 '''
  readFBEController : dependencies are captured here to keep the main() as
